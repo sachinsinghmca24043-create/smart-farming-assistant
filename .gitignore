@@ -1,0 +1,30 @@
+
+# Python cache and test files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Python virtual environment
+.venv/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Next.js generated files
+node_modules/
+.next/
+out/
+
+# macOS files
+.DS_Store
+
+# Backup files
+*.bak
+# Local editor settings
+.vscode/
+
+# Generated Next.js declarations
+frontend/next-env.d.ts

@@ -1,0 +1,227 @@
+[
+  {
+    "id": "rice_001",
+    "crop": "rice",
+    "topic": "irrigation",
+    "keywords": [
+      "rice",
+      "paddy",
+      "water management",
+      "irrigation",
+      "धान",
+      "ಭತ್ತ"
+    ],
+    "content": "An ICAR-CIWA crop-production FAQ advises maintaining an appropriate water level during rice growth and notes a 3–5 cm water level from flowering to the milk stage in the context of its guidance. Confirm suitability for the local variety and field conditions before applying this recommendation.",
+    "language": "en",
+    "source_name": "ICAR-CIWA, Crop Production FAQ",
+    "source_url": "https://www.ciwa.icar.gov.in/gks/crop-production",
+    "verified": true,
+    "scope_note": "Specific water-depth guidance is context-dependent; validate locally.",
+    "translations": {
+      "hi": "ICAR-CIWA की फसल उत्पादन संबंधी FAQ के अनुसार, धान की वृद्धि के दौरान पानी का स्तर उचित रखना चाहिए। इसमें फूल आने से दूधिया दाने की अवस्था तक 3–5 सेमी पानी का उल्लेख है। इसे अपनाने से पहले स्थानीय किस्म, खेत की स्थिति और कृषि विशेषज्ञ की सलाह की पुष्टि करें।",
+      "kn": "ICAR-CIWA ಬೆಳೆ ಉತ್ಪಾದನಾ FAQ ಪ್ರಕಾರ, ಭತ್ತದ ಬೆಳವಣಿಗೆಯ ಸಮಯದಲ್ಲಿ ಸೂಕ್ತ ನೀರಿನ ಮಟ್ಟವನ್ನು ಕಾಯ್ದುಕೊಳ್ಳಬೇಕು. ಹೂ ಬಿಡುವ ಹಂತದಿಂದ ಹಾಲಿನ ಹಂತದವರೆಗೆ 3–5 ಸೆಂ.ಮೀ. ನೀರಿನ ಮಟ್ಟವನ್ನು ಅದು ಉಲ್ಲೇಖಿಸುತ್ತದೆ. ಇದನ್ನು ಅನುಸರಿಸುವ ಮೊದಲು ಸ್ಥಳೀಯ ತಳಿ, ಹೊಲದ ಪರಿಸ್ಥಿತಿ ಮತ್ತು ಕೃಷಿ ತಜ್ಞರ ಸಲಹೆಯನ್ನು ಪರಿಶೀಲಿಸಿ."
+    },
+    "translation_note": "Prototype translation of the English summary; not an official published translation."
+  },
+  {
+    "id": "rice_002",
+    "crop": "rice",
+    "topic": "soil_health",
+    "keywords": [
+      "rice",
+      "paddy",
+      "straw",
+      "organic matter",
+      "soil health",
+      "धान",
+      "ಮಣ್ಣು"
+    ],
+    "content": "An ICAR-CIWA crop-production FAQ says rice straw remaining after harvest can be ploughed into the field to add organic matter. Suitability depends on the local cropping system and field conditions.",
+    "language": "en",
+    "source_name": "ICAR-CIWA, Crop Production FAQ",
+    "source_url": "https://www.ciwa.icar.gov.in/gks/crop-production",
+    "verified": true,
+    "scope_note": "General practice; check local residue-management guidance.",
+    "translations": {
+      "hi": "ICAR-CIWA की फसल उत्पादन संबंधी FAQ के अनुसार, कटाई के बाद बचा धान का पुआल खेत में मिलाने से मिट्टी में जैविक पदार्थ बढ़ाने में मदद मिल सकती है। इसे अपनाने से पहले स्थानीय फसल प्रणाली और खेत की स्थिति के अनुसार सलाह लें।",
+      "kn": "ICAR-CIWA ಬೆಳೆ ಉತ್ಪಾದನಾ FAQ ಪ್ರಕಾರ, ಕೊಯ್ಲಿನ ನಂತರ ಉಳಿದ ಭತ್ತದ ಒಣಹುಲ್ಲನ್ನು ಹೊಲದಲ್ಲಿ ಮಣ್ಣಿನೊಂದಿಗೆ ಬೆರೆಸುವುದರಿಂದ ಮಣ್ಣಿನಲ್ಲಿನ ಸಾವಯವ ಪದಾರ್ಥ ಹೆಚ್ಚಲು ಸಹಾಯವಾಗಬಹುದು. ಇದನ್ನು ಅನುಸರಿಸುವ ಮೊದಲು ಸ್ಥಳೀಯ ಬೆಳೆ ಪದ್ಧತಿ ಮತ್ತು ಹೊಲದ ಪರಿಸ್ಥಿತಿಗೆ ಅನುಗುಣವಾಗಿ ಸಲಹೆ ಪಡೆಯಿರಿ."
+    },
+    "translation_note": "Prototype translation of the English summary; not an official published translation."
+  },
+  {
+    "id": "rice_003",
+    "crop": "rice",
+    "topic": "crop_rotation",
+    "keywords": [
+      "rice",
+      "paddy",
+      "crop rotation",
+      "pulse",
+      "oilseed",
+      "धान"
+    ],
+    "content": "An ICAR-CIWA crop-production FAQ recommends considering a change from rice–rice cropping to rice–pulse or rice–oilseed systems to help minimize pest populations. Crop choice must fit the region, season, water availability, and local recommendations.",
+    "language": "en",
+    "source_name": "ICAR-CIWA, Crop Production FAQ",
+    "source_url": "https://www.ciwa.icar.gov.in/gks/crop-production",
+    "verified": true,
+    "scope_note": "Not a universal rotation prescription; local suitability matters."
+  },
+  {
+    "id": "rice_004",
+    "crop": "rice",
+    "topic": "yield_management",
+    "keywords": [
+      "rice",
+      "paddy",
+      "yield",
+      "variety",
+      "planting time",
+      "fertilizer",
+      "धान"
+    ],
+    "content": "An ICAR-CIWA crop-production FAQ lists suitable variety selection, timely planting, appropriate and timely fertilizer application, green manuring, and treated seedlings among practices that can support rice cultivation. Exact variety and input recommendations should come from local agricultural guidance.",
+    "language": "en",
+    "source_name": "ICAR-CIWA, Crop Production FAQ",
+    "source_url": "https://www.ciwa.icar.gov.in/gks/crop-production",
+    "verified": true,
+    "scope_note": "Do not infer fertilizer quantities from this general summary."
+  },
+  {
+    "id": "rice_005",
+    "crop": "rice",
+    "topic": "post_harvest",
+    "keywords": [
+      "rice",
+      "paddy",
+      "after harvest",
+      "black gram",
+      "groundnut",
+      "धान"
+    ],
+    "content": "An ICAR-CIWA crop-production FAQ notes that non-rice crops such as black gram and groundnut may fit some fields after rice. Select the next crop based on local climate, soil drainage, season, and extension advice.",
+    "language": "en",
+    "source_name": "ICAR-CIWA, Crop Production FAQ",
+    "source_url": "https://www.ciwa.icar.gov.in/gks/crop-production",
+    "verified": true,
+    "scope_note": "Region and season dependent."
+  },
+  {
+    "id": "rice_006",
+    "crop": "rice",
+    "topic": "waterlogging",
+    "keywords": [
+      "rice",
+      "paddy",
+      "waterlogging",
+      "flooding",
+      "drainage",
+      "धान"
+    ],
+    "content": "ICAR-National Rice Research Institute describes excessive or prolonged waterlogging and poor drainage as sources of stress in rice systems, even though rice is suited to wet conditions. Advice should distinguish normal water management from prolonged submergence and account for the rice ecology.",
+    "language": "en",
+    "source_name": "ICAR-NRRI, Increasing rice production from waterlogged rice ecologies",
+    "source_url": "https://epubs.icar.org.in/index.php/IndFarm/article/view/114398",
+    "verified": true,
+    "scope_note": "General summary; diagnose field conditions before recommending action."
+  },
+  {
+    "id": "general_001",
+    "crop": "all",
+    "topic": "pest_disease",
+    "keywords": [
+      "pest",
+      "disease",
+      "insect",
+      "spots",
+      "wilting",
+      "कीट",
+      "रोग",
+      "ಕೀಟ",
+      "ರೋಗ"
+    ],
+    "content": "Before suggesting a treatment, collect the crop name, location, growth stage, affected plant parts, and visible symptoms. If possible, request a clear photo. Do not recommend a pesticide or dosage when the pest or disease has not been identified; refer the farmer to a local agricultural extension expert or Kisan Call Centre.",
+    "language": "en",
+    "source_name": "Project safety rule (not an agricultural treatment recommendation)",
+    "source_url": "https://www.dackkms.gov.in/Account/aboutus.aspx",
+    "verified": false,
+    "scope_note": "Safety workflow authored for this prototype; not quoted from the linked KCC page."
+  },
+  {
+    "id": "general_002",
+    "crop": "all",
+    "topic": "expert_support",
+    "keywords": [
+      "expert",
+      "help",
+      "agricultural advice",
+      "Kisan Call Centre",
+      "किसान कॉल सेंटर"
+    ],
+    "content": "For location-specific agricultural questions that cannot be answered confidently, farmers in India can contact the Kisan Call Centre at 1800-180-1551. The official service page says the service operates daily from 6:00 AM to 10:00 PM and answers queries in multiple Indian languages. Verify current service details before displaying them in a production app.",
+    "language": "en",
+    "source_name": "Department of Agriculture & Farmers Welfare, Kisan Call Centre",
+    "source_url": "https://www.dackkms.gov.in/Account/aboutus.aspx",
+    "verified": true,
+    "scope_note": "Operational details can change; re-check before production use.",
+    "translations": {
+      "hi": "भारत में स्थानीय कृषि संबंधी सहायता के लिए किसान कॉल सेंटर से 1800-180-1551 पर संपर्क किया जा सकता है। सेवा का वर्तमान समय और उपलब्ध भाषाएँ आधिकारिक वेबसाइट पर जाँच लें।",
+      "kn": "ಭಾರತದಲ್ಲಿ ಸ್ಥಳೀಯ ಕೃಷಿ ಸಲಹೆಗಾಗಿ ರೈತರು ಕಿಸಾನ್ ಕಾಲ್ ಸೆಂಟರ್ ಅನ್ನು 1800-180-1551 ಸಂಖ್ಯೆಯಲ್ಲಿ ಸಂಪರ್ಕಿಸಬಹುದು. ಸೇವೆಯ ಪ್ರಸ್ತುತ ಸಮಯ ಮತ್ತು ಲಭ್ಯ ಭಾಷೆಗಳನ್ನು ಅಧಿಕೃತ ವೆಬ್‌ಸೈಟ್‌ನಲ್ಲಿ ಪರಿಶೀಲಿಸಿ."
+    },
+    "translation_note": "Prototype translation of the English summary; not an official published translation."
+  },
+  {
+    "id": "general_003",
+    "crop": "all",
+    "topic": "fertilizer",
+    "keywords": [
+      "fertilizer",
+      "nutrient",
+      "soil test",
+      "उर्वरक",
+      "ಗೊಬ್ಬರ"
+    ],
+    "content": "Fertilizer selection and quantity depend on crop, variety, soil fertility, growth stage, and local recommendations. Ask for the crop and location, and prefer a soil-test-based recommendation from the local agriculture department or Krishi Vigyan Kendra. This is a conservative routing guideline, not a crop-specific fertilizer prescription.",
+    "language": "en",
+    "source_name": "Project safety rule",
+    "source_url": "",
+    "verified": false,
+    "scope_note": "Supplement with reviewed crop-specific official guidance."
+  },
+  {
+    "id": "general_004",
+    "crop": "all",
+    "topic": "weather",
+    "keywords": [
+      "weather",
+      "rain",
+      "forecast",
+      "मौसम",
+      "ಹವಾಮಾನ"
+    ],
+    "content": "This prototype does not yet connect to a live weather service. Do not present a forecast as current unless retrieved from a reliable weather API and associated with the relevant location and timestamp. Ask for the farmer's district if location-specific guidance is needed.",
+    "language": "en",
+    "source_name": "Project capability note",
+    "source_url": "",
+    "verified": false,
+    "scope_note": "Operational limitation, not agricultural source material."
+  },
+  {
+    "id": "general_005",
+    "crop": "all",
+    "topic": "government_schemes",
+    "keywords": [
+      "scheme",
+      "subsidy",
+      "government scheme",
+      "योजना",
+      "ಸರ್ಕಾರಿ ಯೋಜನೆ"
+    ],
+    "content": "Eligibility and application steps vary by scheme, state, and time. Ask for the farmer's state and scheme name, then verify eligibility and deadlines on the relevant official government portal before giving a definitive answer.",
+    "language": "en",
+    "source_name": "Project safety rule",
+    "source_url": "",
+    "verified": false,
+    "scope_note": "Add specific schemes only after checking official current portals."
+  }
+]

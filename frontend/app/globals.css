@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --primary-green: #16a34a;
+  --dark-green: #15803d;
+  --bg-light: #f8fafc;
+}
+
+body {
+  background-color: #f1f5f9;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  user-select: none;
+}
+
+/* Custom Scrollbar for Chat & Tables */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
