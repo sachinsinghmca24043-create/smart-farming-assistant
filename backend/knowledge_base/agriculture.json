@@ -65,7 +65,13 @@
     "source_name": "ICAR-CIWA, Crop Production FAQ",
     "source_url": "https://www.ciwa.icar.gov.in/gks/crop-production",
     "verified": true,
-    "scope_note": "Not a universal rotation prescription; local suitability matters."
+    "scope_note": "Not a universal rotation prescription; local suitability matters.",
+    "translations": {
+      "kn": "ICAR-CIWA ನ ಬೆಳೆ ಉತ್ಪಾದನಾ FAQ, ಕೀಟಗಳ ಸಂಖ್ಯೆಯನ್ನು ಕಡಿಮೆ ಮಾಡಲು ಸಹಾಯವಾಗುವಂತೆ ಭತ್ತ–ಭತ್ತದ ಬೆಳೆ ಪದ್ಧತಿಯಿಂದ ಭತ್ತ–ದ್ವಿದಳ ಧಾನ್ಯ ಅಥವಾ ಭತ್ತ–ಎಣ್ಣೆಕಾಳು ಪದ್ಧತಿಗಳಿಗೆ ಬದಲಾಯಿಸುವುದನ್ನು ಪರಿಗಣಿಸಲು ಶಿಫಾರಸು ಮಾಡುತ್ತದೆ. ಬೆಳೆಯ ಆಯ್ಕೆಯು ಪ್ರದೇಶ, ಹಂಗಾಮು, ನೀರಿನ ಲಭ್ಯತೆ ಮತ್ತು ಸ್ಥಳೀಯ ಶಿಫಾರಸುಗಳಿಗೆ ಅನುಗುಣವಾಗಿರಬೇಕು.",
+      "hi": "एक आईसीएआर-सीआईडब्ल्यूए (ICAR-CIWA) फसल-उत्पादन एफएक्यू (FAQ) कीटों की संख्या को कम करने में मदद के लिए धान-धान फसल चक्र से बदलकर धान-दलहन या धान-तिलहन प्रणालियों अपनाने पर विचार करने की सलाह देता है। फसल का चुनाव क्षेत्र, मौसम, पानी की उपलब्धता और स्थानीय अनुशंसाओं के अनुकूल होना चाहिए।"
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
   },
   {
     "id": "rice_004",
@@ -85,7 +91,13 @@
     "source_name": "ICAR-CIWA, Crop Production FAQ",
     "source_url": "https://www.ciwa.icar.gov.in/gks/crop-production",
     "verified": true,
-    "scope_note": "Do not infer fertilizer quantities from this general summary."
+    "scope_note": "Do not infer fertilizer quantities from this general summary.",
+    "translations": {
+      "hi": "एक आईसीएआर-सीआईडब्ल्यूए (ICAR-CIWA) फसल-उत्पादन एफएक्यू (FAQ) धान की खेती में सहायता करने वाले अभ्यासों में उपयुक्त किस्म का चयन, समय पर रोपाई, उचित और समय पर उर्वरक का प्रयोग, हरी खाद देना, और उपचारित पौध को सूचीबद्ध करता है। सटीक किस्म और इनपुट (सामग्री) की सिफारिशें स्थानीय कृषि मार्गदर्शन से मिलनी चाहिए।",
+      "kn": "ICAR-CIWA ನ ಬೆಳೆ ಉತ್ಪಾದನೆಯ FAQ, ಸೂಕ್ತ ತಳಿಯ ಆಯ್ಕೆ, ಸಮಯೋಚಿತ ನಾಟಿ, ಸೂಕ್ತ ಹಾಗೂ ಸಮಯೋಚಿತ ರೊಬ್ಬರ ಬಳಕೆ, ಹಸಿರೆಲೆ ಗೊಬ್ಬರ ಮತ್ತು ಉಪಚರಿಸಿದ ಸಸಿಗಳನ್ನು ಭತ್ತದ ಬೇಸಾಯಕ್ಕೆ ನೆರವಾಗುವ ಪದ್ಧತಿಗಳಲ್ಲಿ ಸೇರಿಸಿದೆ. ನಿಖರವಾದ ತಳಿ ಮತ್ತು ಕೃಷಿ ಇನ್ಪುಟ್ ಶಿಫಾರಸುಗಳು ಸ್ಥಳೀಯ ಕೃಷಿ ಮಾರ್ಗದರ್ಶನದಿಂದ ಬರಬೇಕು."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
   },
   {
     "id": "rice_005",
@@ -104,7 +116,13 @@
     "source_name": "ICAR-CIWA, Crop Production FAQ",
     "source_url": "https://www.ciwa.icar.gov.in/gks/crop-production",
     "verified": true,
-    "scope_note": "Region and season dependent."
+    "scope_note": "Region and season dependent.",
+    "translations": {
+      "hi": "आईसीएआर-सीइवा (ICAR-CIWA) की फसल-उत्पादन संबंधी एक अक्सर पूछे जाने वाले प्रश्नों (FAQ) की सूची में यह उल्लेख किया गया है कि धान के बाद कुछ खेतों में उड़द (ब्लैक ग्राम) और मूंगफली जैसी गैर-धान फसलें उपयुक्त हो सकती हैं। स्थानीय जलवायु, मिट्टी की जल निकासी, मौसम और कृषि विस्तार सलाह के आधार पर अगली फसल का चयन करें।",
+      "kn": "ಒಂದು ICAR-CIWA ಬೆಳೆ ಉತ್ಪಾದನಾ FAQ ನುಡಿಯುವಂತೆ, ಭತ್ತದ ನಂತರ ಕೆಲವು ಗದ್ದೆಗಳಿಗೆ ಉದ್ದು ಮತ್ತು ನೆಲಕಡಲೆಯಂತಹ ಭತ್ತೇತರ ಬೆಳೆಗಳು ಸೂಕ್ತವಾಗಬಹುದು. ಸ್ಥಳೀಯ ಹವಾಮಾನ, ಮಣ್ಣಿನ ಒಳಚರಂಡಿ, ಹಂಗಾಮು ಮತ್ತು ವಿಸ್ತರಣಾ ಸಲಗೆಯ ಆಧಾರದ ಮೇಲೆ ಮುಂದಿನ ಬೆಳೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
   },
   {
     "id": "rice_006",
@@ -123,7 +141,13 @@
     "source_name": "ICAR-NRRI, Increasing rice production from waterlogged rice ecologies",
     "source_url": "https://epubs.icar.org.in/index.php/IndFarm/article/view/114398",
     "verified": true,
-    "scope_note": "General summary; diagnose field conditions before recommending action."
+    "scope_note": "General summary; diagnose field conditions before recommending action.",
+    "translations": {
+      "hi": "भाकृअनुप-राष्ट्रीय चावल अनुसंधान संस्थान (ICAR-National Rice Research Institute) अत्यधिक या लंबे समय तक जलभराव और खराब जल निकासी को धान प्रणालियों में तनाव का स्रोत बताता है, भले ही धान गीली स्थितियों के लिए उपयुक्त हो। सलाह में सामान्य जल प्रबंधन को लंबी जलमग्नता से अलग करना चाहिए और धान की पारिस्थितिकी को ध्यान में रखना चाहिए।",
+      "kn": "ಐಸಿಎಆರ್-ರಾಷ್ಟ್ರೀಯ ಭತ್ತ ಸಂಶೋಧನಾ ಸಂಸ್ಥೆಯು (ICAR-National Rice Research Institute) ಅತಿಯಾದ ಅಥವಾ ದೀರ್ಘಕಾಲದ ನೀರು ನಿಲ್ಲುವಿಕೆ ಮತ್ತು ಕಳಪೆ ಒಳಚರಂಡಿಯನ್ನು ಭತ್ತದ ವ್ಯವಸ್ಥೆಯಲ್ಲಿ ಒತ್ತಡದ ಮೂಲಗಳೆಂದು ಬಣ್ಣಿಸುತ್ತದೆ, ಆದಾಗ್ಯೂ ಭತ್ತವು ತೇವಾಂಶದ ಪರಿಸ್ಥಿತಿಗಳಿಗೆ ಸೂಕ್ತವಾಗಿದೆ. ಸಲಹೆಯು ಸಾಮಾನ್ಯ ನೀರಿನ ನಿರ್ವಹಣೆಯನ್ನು ದೀರ್ಘಕಾಲದ ಮುಳುಗಡೆಯಿಂದ ಪ್ರತ್ಯೇಕಿಸಬೇಕು ಮತ್ತು ಭತ್ತದ ಪರಿಸರ ವಿಜ್ಞಾನವನ್ನು ಗಣನೆಗೆ ತೆಗೆದುಕೊಳ್ಳಬೇಕು."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
   },
   {
     "id": "general_001",
@@ -145,7 +169,13 @@
     "source_name": "Project safety rule (not an agricultural treatment recommendation)",
     "source_url": "https://www.dackkms.gov.in/Account/aboutus.aspx",
     "verified": false,
-    "scope_note": "Safety workflow authored for this prototype; not quoted from the linked KCC page."
+    "scope_note": "Safety workflow authored for this prototype; not quoted from the linked KCC page.",
+    "translations": {
+      "hi": "उपचार सुझाने से पहले, फसल का नाम, स्थान, वृद्धि की अवस्था, प्रभावित पौधे के भाग और दिखाई देने वाले लक्षण एकत्र करें। यदि संभव हो, तो एक स्पष्ट तस्वीर का अनुरोध करें। जब कीट या रोग की पहचान नहीं हुई हो, तब कोई कीटनाशक या खुराक की सिफारिश न करें; किसान को किसी स्थानीय कृषि विस्तार विशेषज्ञ या किसान कॉल सेंटर के पास भेजें।",
+      "kn": "उपचारವನ್ನು ಸೂಚಿಸುವ ಮೊದಲು, ಬೆಳೆಯ ಹೆಸರು, ಸ್ಥಳ, ಬೆಳವಣಿಗೆಯ ಹಂತ, ಬಾಧಿತ ಸಸ್ಯದ ಭಾಗಗಳು ಮತ್ತು ಗೋಚರಿಸುವ ರೋಗಲಕ್ಷಣಗಳನ್ನು ಸಂಗ್ರಹಿಸಿ. ಸಾಧ್ಯವಾದರೆ, ಸ್ಪಷ್ಟವಾದ ಫೋಟೋವನ್ನು ಕೇಳಿ. ಕೀಟ ಅಥವಾ ರೋಗವು ಗುರುತಿಸಲ್ಪಡದಿದ್ದಾಗ ಕೀಟನಾಶಕ ಅಥವಾ ಡೋಸೇಜ್ ಅನ್ನು ಶಿಫಾರಸು ಮಾಡಬೇಡಿ; ರೈತರನ್ನು ಸ್ಥಳೀಯ ಕೃಷಿ ವಿಸ್ತರಣಾ ತಜ್ಞರಿಗೆ ಅಥವಾ ಕಿಸಾನ್ ಕಾಲ್ ಸೆಂಟರ್‌ಗೆ ಉಲ್ಲೇಖಿಸಿ."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
   },
   {
     "id": "general_002",
@@ -186,7 +216,13 @@
     "source_name": "Project safety rule",
     "source_url": "",
     "verified": false,
-    "scope_note": "Supplement with reviewed crop-specific official guidance."
+    "scope_note": "Supplement with reviewed crop-specific official guidance.",
+    "translations": {
+      "hi": "उर्वरक का चयन और मात्रा फसल, किस्म, मिट्टी की उर्वरता, वृद्धि के चरण और स्थानीय अनुशंसाओं पर निर्भर करती है। फसल और स्थान की जानकारी लें, और स्थानीय कृषि विभाग या कृषि विज्ञान केंद्र से मिट्टी की जाँच पर आधारित अनुशंसा को प्राथमिकता दें। यह एक रूढ़िवादी मार्गदर्शक दिशा-निर्देश है, न कि फसल-विशिष्ट उर्वरक नुस्खा।",
+      "kn": "ರೊಬ್ಬರ ಆಯ್ಕೆ ಮತ್ತು ಪ್ರಮಾಣವು ಬೆಳೆ, ತಳಿ, ಮಣ್ಣಿನ ಫಲವತ್ತತೆ, ಬೆಳವಣಿಗೆಯ ಹಂತ ಮತ್ತು ಸ್ಥಳೀಯ ಶಿಫಾರಸುಗಳನ್ನು ಅವಲಂಬಿಸಿರುತ್ತದೆ. ಬೆಳ ಮತ್ತು ಸ್ಥಳದ ಬಗ್ಗೆ ಕೇಳಿ, ಮತ್ತು ಸ್ಥಳೀಯ ಕೃಷಿ ಇಲಾಖೆ ಅಥವಾ ಕೃಷಿ ವಿಜ್ಞಾನ ಕೇಂದ್ರದಿಂದ ಮಣ್ಣು ಪರೀಕ್ಷೆ ಆಧಾರಿತ ಶಿಫಾರಸಿಗೆ ಆದ್ಯತೆ ನೀಡಿ. ಇದು ಬೆಳೆ-ನಿರ್ದಿಷ್ಟ ರೊಬ್ಬರ ಸಲಹೆಯಲ್ಲ, ಬದಲಿಗೆ ಸಂಪ್ರದಾಯಬದ್ಧ ಮಾರ್ಗದರ್ಶಿ ಸೂತ್ರವಾಗಿದೆ."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
   },
   {
     "id": "general_004",
@@ -199,12 +235,18 @@
       "मौसम",
       "ಹವಾಮಾನ"
     ],
-    "content": "This prototype does not yet connect to a live weather service. Do not present a forecast as current unless retrieved from a reliable weather API and associated with the relevant location and timestamp. Ask for the farmer's district if location-specific guidance is needed.",
+    "content": "Live weather is available through the app's weather service (Open-Meteo) when the farmer names a city or town. If no location is given, ask for the farmer's city or town. Present a forecast only together with the place and time it refers to.",
     "language": "en",
     "source_name": "Project capability note",
     "source_url": "",
     "verified": false,
-    "scope_note": "Operational limitation, not agricultural source material."
+    "scope_note": "Describes the app's own weather feature; not agricultural source material.",
+    "translations": {
+      "hi": "जब किसान किसी शहर या कस्बे का नाम लेता है, तो ऐप की मौसम सेवा (Open-Meteo) के माध्यम से लाइव मौसम उपलब्ध होता है। यदि कोई स्थान नहीं दिया गया है, तो किसान के शहर या कस्बे के बारे में पूछें। पूर्वानुमान केवल उस स्थान और समय के साथ प्रस्तुत करें जिससे वह संबंधित है।",
+      "kn": "ರೈತರು ನಗರ ಅಥವಾ ಪಟ್ಟಣದ ಹೆಸರನ್ನು ಸೂಚಿಸಿದಾಗ ಅಪ್ಲಿಕೇಶನ್‌ನ ಹವಾಮಾನ ಸೇವೆಯ (Open-Meteo) ಮೂಲಕ ಪ್ರಸ್ತುತ ಹವಾಮಾನ ಲಭ್ಯವಿರುತ್ತದೆ. ಯಾವುದೇ ಸ್ಥಳವನ್ನು ನೀಡದಿದ್ದರೆ, ರೈತರ ನಗರ ಅಥವಾ ಪಟ್ಟಣವನ್ನು ಕೇಳಿ. ಮುನ್ಸೂಚನೆಯನ್ನು ಅದು ಸೂಚಿಸುವ ಸ್ಥಳ ಮತ್ತು ಸಮಯದೊಂದಿಗೆ ಮಾತ್ರ ಪ್ರಸ್ತುತಪಡಿಸಿ."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
   },
   {
     "id": "general_005",
@@ -222,6 +264,146 @@
     "source_name": "Project safety rule",
     "source_url": "",
     "verified": false,
-    "scope_note": "Add specific schemes only after checking official current portals."
+    "scope_note": "Add specific schemes only after checking official current portals.",
+    "translations": {
+      "hi": "पात्रता और आवेदन के चरण योजना, राज्य और समय के अनुसार अलग-अलग होते हैं। किसान से उनके राज्य और योजना का नाम पूछें, फिर निश्चित उत्तर देने से पहले संबंधित आधिकारिक सरकारी पोर्टल पर पात्रता और समय-सीमा की पुष्टि करें।",
+      "kn": "ಅರ್ಹತೆ ಮತ್ತು ಅರ್ಜಿ ಸಲ್ಲಿಸುವ ಹಂತಗಳು ಯೋಜನೆ, ರಾಜ್ಯ ಮತ್ತು ಸಮಯಕ್ಕೆ ತಕ್ಕಂತೆ ಬದಲಾಗುತ್ತವೆ. ರೈತರ ರಾಜ್ಯ ಮತ್ತು ಯೋಜನೆಯ ಹೆಸರನ್ನು ಕೇಳಿ, ನಂತರ ಖಚಿತವಾದ ಉತ್ತರವನ್ನು ನೀಡುವ ಮೊದಲು ಸಂಬಂಧಿತ ಅಧಿಕೃತ ಸರ್ಕಾರಿ ಪೋರ್ಟಲ್‌ನಲ್ಲಿ ಅರ್ಹತೆ ಮತ್ತು ಗಡುವುಗಳನ್ನು ಪರಿಶೀಲಿಸಿ."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
+  },
+  {
+    "id": "wheat_001",
+    "crop": "wheat",
+    "topic": "irrigation",
+    "keywords": [
+      "wheat",
+      "irrigation",
+      "water",
+      "crown root initiation",
+      "tillering",
+      "गेहूं",
+      "सिंचाई",
+      "ಗೋಧಿ",
+      "ನೀರಾವರಿ"
+    ],
+    "content": "ICAR guidance for irrigated wheat treats the irrigation at crown root initiation, about 20 to 25 days after sowing, as the first of the key irrigations. Later irrigations are given at stages such as tillering, jointing or booting, flowering and milk, depending on soil, rainfall and variety. Confirm the number and timing of irrigations with local extension advice.",
+    "language": "en",
+    "source_name": "ICAR-IARI wheat variety fact sheet (HD 3226) and ICAR research publications",
+    "source_url": "https://icar.org.in/node/12081",
+    "verified": true,
+    "scope_note": "Zone- and variety-specific; irrigation schedules differ across regions and soils.",
+    "translations": {
+      "hi": "सिंचित गेहूं के लिए आईसीएR के मार्गदर्शन में बुवाई के लगभग 20 से 25 दिन बाद क्राउन रूट इनिशिएशन (ताज जड़ निकलते समय) पर दी जाने वाली सिंचाई को पहली प्रमुख सिंचाई माना जाता है। मिट्टी, वर्षा और किस्म के आधार पर बाद की सिंचाई कल्ले फूटने, गांठ बनने या बूटिंग (बालियां आने से पहले), फूल आने और दूधिया दाने बनने की अवस्थाओं पर दी जाती है। सिंचाई की संख्या और समय की पुष्टि स्थानीय कृषि विस्तार सलाह से करें।",
+      "kn": "ನೀರಾವರಿ ಗೋಧಿಗೆ ಸಂಬಂಧಿಸಿದ ಐ.ಸಿ.ಎ.ಆರ್. (ICAR) ಮಾರ್ಗದರ್ಶನೆಯು, ಬಿತ್ತನೆಯಾದ ಸುಮಾರು 20 ರಿಂದ 25 ದಿನಗಳ ನಂತರ ಬರುವ ಕಿರೀಟ ಬೇರು ಮೂಡುವ ಹಂತದ (ಕ್ರೌನ್ ರೂಟ್ ಇನಿಶಿಯೇಷನ್) ನೀರಾವರಿಯನ್ನು ಅತ್ಯಂತ ಪ್ರಮುಖವಾದ ಮೊದಲ ನೀರಾವರಿ ಎಂದು ಪರಿಗಣಿಸುತ್ತದೆ. ಮಣ್ಣು, ಮಳೆ ಮತ್ತು ತಳಿಗೆ ಅನುಗುಣವಾಗಿ, ಮುಂದಿನ ನೀರಾವರಿಗಳನ್ನು ಕವಲೊಡೆಯುವ ಹಂತ, ಗಣ್ಣು ಮೂಡುವ ಅಥವಾ ತೆನೆಕಟ್ಟುವ ಹಂತ, ಹೂಬಿಡುವ ಹಂತ ಮತ್ತು ಹಾಲು ತುಂಬುವ ಹಂತಗಳಲ್ಲಿ ನೀಡಲಾಗುತ್ತದೆ. ನೀರಾವರಿಗಳ ಸಂಖ್ಯೆ ಮತ್ತು ಸಮಯವನ್ನು ಸ್ಥಳೀಯ ವಿಸ್ತರಣಾ ಸಲಹೆಯೊಂದಿಗೆ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
+  },
+  {
+    "id": "wheat_002",
+    "crop": "wheat",
+    "topic": "yield_management",
+    "keywords": [
+      "wheat",
+      "sowing time",
+      "seed rate",
+      "yield",
+      "timely sowing",
+      "गेहूं",
+      "बुवाई",
+      "ಗೋಧಿ",
+      "ಬಿತ್ತನೆ"
+    ],
+    "content": "ICAR-IARI's fact sheet for the wheat variety HD 3226, meant for irrigated, timely-sown conditions in the north-western plains and nearby areas, lists a sowing window of 5 to 25 November and a seed rate of 100 kg per hectare. ICAR studies also report that wheat sown after the optimum time gives a lower yield. Sowing windows and seed rates differ by zone and variety, so confirm them locally.",
+    "language": "en",
+    "source_name": "ICAR-IARI wheat variety fact sheet (HD 3226) and ICAR research publications",
+    "source_url": "https://icar.org.in/node/12081",
+    "verified": true,
+    "scope_note": "Numbers apply to the named variety and zone; do not generalise to all regions.",
+    "translations": {
+      "hi": "आईसीएआर-आईएआरआई (ICAR-IARI) की गेहूं की किस्म एचडी 3226 (HD 3226) के लिए तथ्य पत्रक (फैक्ट शीट), जो उत्तर-पश्चिमी मैदानी इलाकों और आसपास के क्षेत्रों में सिंचित, समय पर बुआई की जाने वाली परिस्थितियों के लिए है, 5 से 25 नवंबर की बुआई की अवधि और 100 किलोग्राम प्रति हेक्टेयर की बीज दर सूचीबद्ध करता है। आईसीएआर के अध्ययन यह भी बताते हैं कि इष्टतम समय के बाद बोया गया गेहूं कम पैदावार देता है। बुआई की अवधि और बीज दर क्षेत्र और किस्म के अनुसार भिन्न होती है, इसलिए स्थानीय स्तर पर उनकी पुष्टि करें।",
+      "kn": "ಐಸಿಎಆರ್-ಐಎಆರ್‌ಐ (ICAR-IARI) ನ ಗೋಧಿ ತಳಿ ಹೆಚ್‌ಡಿ 3226 (HD 3226) ಗಾಗಿನ ಮಾಹಿತಿ ಹಾಳೆಯಲ್ಲಿ, ಇದು ವಾಯುವ್ಯ ಬಯಲು ಸೀಮೆಗಳು ಮತ್ತು ಹತ್ತಿರದ ಪ್ರದೇಶಗಳಲ್ಲಿ ನೀರಾವರಿ ಹಾಗೂ ಸಕಾಲದಲ್ಲಿ ಬಿತ್ತನೆ ಮಾಡುವ ಪರಿಸ್ಥಿತಿಗಳಿಗೆ ಉದ್ದೇಶಿಸಲಾಗಿದೆ ಎಂದು ತಿಳಿಸಿದ್ದು, ನವೆಂಬರ್ 5 ರಿಂದ 25 ರವರೆಗಿನ ಬಿತ್ತನೆ ಕಾಲಾವಕಾಶವನ್ನು ಮತ್ತು ಪ್ರತಿ ಹೆಕ್ಟೇರ್‌ಗೆ 100 ಕೆ.ಜಿ. ಬೀಜದ ಪ್ರಮಾಣವನ್ನು ಪಟ್ಟಿ ಮಾಡಿದೆ. ಅತ್ಯುತ್ತಮ ಸಮಯದ ನಂತರ ಬಿತ್ತನೆ ಮಾಡಿದ ಗೋಧಿಯು ಕಡಿಮೆ ಇಳುವರಿಯನ್ನು ನೀಡುತ್ತದೆ ಎಂದು ಐಸಿಎಆರ್ (ICAR) ಅಧ್ಯಯನಗಳು ಸಹ ವರದಿ ಮಾಡುತ್ತವೆ. ಬಿತ್ತನೆ ಕಾಲಾವಕಾಶಗಳು ಮತ್ತು ಬೀಜದ ಪ್ರಮಾಣಗಳು ವಲಯ ಮತ್ತು ತಳಿಗೆ ತಕ್ಕಂತೆ ಭಿನ್ನವಾಗಿರುತ್ತವೆ, ಆದ್ದರಿಂದ ಅವುಗಳನ್ನು ಸ್ಥಳೀಯವಾಗಿ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
+  },
+  {
+    "id": "scheme_001",
+    "crop": "all",
+    "topic": "government_schemes",
+    "keywords": [
+      "PM-KISAN",
+      "PM Kisan",
+      "Kisan Samman Nidhi",
+      "6000",
+      "income support",
+      "पीएम किसान",
+      "किसान सम्मान निधि",
+      "ಪಿಎಂ ಕಿಸಾನ್"
+    ],
+    "content": "PM-KISAN gives eligible landholding farmer families income support of ₹6,000 per year, paid in three equal instalments of ₹2,000 directly into an Aadhaar-linked bank account. Some groups are excluded, such as institutional landholders and higher-income groups, for example income-tax payers, serving or retired government officers and holders of constitutional posts. e-KYC is required. Register at pmkisan.gov.in or at a Common Service Centre, and check current rules on the official portal.",
+    "language": "en",
+    "source_name": "PM-KISAN official portal (Department of Agriculture & Farmers Welfare)",
+    "source_url": "https://pmkisan.gov.in/",
+    "verified": true,
+    "scope_note": "Rules and instalment dates can change; confirm on the official portal.",
+    "translations": {
+      "hi": "PM-KISAN पात्र जोत वाले किसान परिवारों को प्रति वर्ष ₹6,000 की आय सहायता प्रदान करता है, जिसका भुगतान आधार से जुड़े बैंक खाते में सीधे ₹2,000 की तीन समान किस्तों में किया जाता है। कुछ समूहों को बाहर रखा गया है, जैसे संस्थागत भूस्वामी और उच्च आय वर्ग, उदाहरण के लिए आयकरदाता, सेवारत या सेवानिवृत्त सरकारी अधिकारी और संवैधानिक पदों के धारक। e-KYC आवश्यक है। pmkisan.gov.in पर या कॉमन सर्विस सेंटर पर पंजीकरण करें, और आधिकारिक पोर्टल पर वर्तमान नियमों की जांच करें।",
+      "kn": "PM-KISAN ಯೋಜನೆಯು ಅರ್ಹ ಭೂಮಾಲೀಕ ರೈತ ಕುಟುಂಬಗಳಿಗೆ ವರ್ಷಕ್ಕೆ ₹6,000 ಆದಾಯ ಬೆಂಬಲವನ್ನು ನೀಡುತ್ತದೆ, ಇದನ್ನು ತಲಾ ₹2,000 ರಂತೆ ಮೂರು ಸಮಾನ ಕಂತುಗಳಲ್ಲಿ ನೇರವಾಗಿ ಆಧಾರ್‌-ಸಂಯೋಜಿತ ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ ಜಮಾ ಮಾಡಲಾಗುತ್ತದೆ. ಸಾಂಸ್ಥಿಕ ಭೂಮಾಲೀಕರು ಮತ್ತು ಹೆಚ್ಚಿನ ಆದಾಯದ ಗುಂಪುಗಳಾದ ಆದಾಯ ತೆರಿಗೆ ಪಾವತಿದಾರರು, ಸೇವೆ ಸಲ್ಲಿಸುತ್ತಿರುವ ಅಥವಾ ನಿವೃತ್ತ ಸರ್ಕಾರಿ ಅಧಿಕಾರಿಗಳು ಮತ್ತು ಸಾವಿಧಾನಿಕ ಹುದ್ದೆಗಳನ್ನು ಹೊಂದಿರುವವರಂತಹ ಕೆಲವು ಗುಂಪುಗಳನ್ನು ಹೊರಗಿಡಲಾಗಿದೆ. ಇ-ಕೆವೈಸಿ (e-KYC) ಕಡ್ಡಾಯವಾಗಿದೆ. pmkisan.gov.in ನಲ್ಲಿ ಅಥವಾ ಸಾಮಾನ್ಯ ಸೇವಾ ಕೇಂದ್ರದಲ್ಲಿ (Common Service Centre) ನೋಂದಾಯಿಸಿ ಮತ್ತು ಅಧಿಕೃತ ಪೋರ್ಟಲ್‌ನಲ್ಲಿ ಪ್ರಸ್ತುತ ನಿಯಮಗಳನ್ನು ಪರಿಶೀಲಿಸಿ."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
+  },
+  {
+    "id": "scheme_002",
+    "crop": "all",
+    "topic": "government_schemes",
+    "keywords": [
+      "PMFBY",
+      "Fasal Bima",
+      "crop insurance",
+      "premium",
+      "फसल बीमा",
+      "बीमा",
+      "ಬೆಳೆ ವಿಮೆ"
+    ],
+    "content": "Under the Pradhan Mantri Fasal Bima Yojana (PMFBY), farmers insuring notified crops pay at most 2% of the sum insured for kharif food and oilseed crops, 1.5% for rabi food and oilseed crops, and 5% for annual commercial and horticultural crops; the government pays the rest of the premium. Enrol through a bank, a Common Service Centre or pmfby.gov.in before the cut-off date your state notifies for each season. Report crop loss within 72 hours; the PMFBY helpline is 14447.",
+    "language": "en",
+    "source_name": "PMFBY official portal (Department of Agriculture & Farmers Welfare)",
+    "source_url": "https://pmfby.gov.in/",
+    "verified": true,
+    "scope_note": "Notified crops, areas and cut-off dates are set by each state for each season.",
+    "translations": {
+      "hi": "प्रधानमंत्री फसल बीमा योजना (PMFBY) के तहत, अधिसूचित फसलों का बीमा कराने वाले किसान खरीफ की खाद्य और तिलहन फसलों के लिए बीमा राशि का अधिकतम 2%, रबी की खाद्य और तिलहन फसलों के लिए 1.5%, और वार्षिक व्यावसायिक तथा बागवानी फसलों के लिए 5% भुगतान करते हैं; शेष प्रीमियम का भुगतान सरकार करती है। प्रत्येक सीजन के लिए आपके राज्य द्वारा अधिसूचित अंतिम तिथि से पहले किसी बैंक, कॉमन सर्विस सेंटर या pmfby.gov.in के माध्यम से नामांकन करें। फसल के नुकसान की सूचना 72 घंटे के भीतर दें; PMFBY हेल्पलाइन 14447 है।",
+      "kn": "ಪ್ರಧಾನಮಂತ್ರಿ ಫಸಲ್ ಬಿಮಾ ಯೋಜನೆ (PMFBY) ಅಡಿಯಲ್ಲಿ, ಸೂಚರಿತ ಬೆಳೆಗಳನ್ನು ವಿಮೆ ಮಾಡಿಸುವ ರೈತರು ಮುಂಗಾರು (ಖಾರಿಫ್) ಆಹಾರ ಮತ್ತು ಎಣ್ಣೆಕಾಳು ಬೆಳೆಗಳಿಗೆ ವಿಮಾ ಮೊತ್ತದ ಗರಿಷ್ಠ 2% ರಷ್ಟು, ಹಿಂಗಾರು (ರಬಿ) ಆಹಾರ ಮತ್ತು ಎಣ್ಣೆಕಾಳು ಬೆಳೆಗಳಿಗೆ 1.5% ರಷ್ಟು ಮತ್ತು ವಾರ್ಷಿಕ ವಾಣಿಜ್ಯ ಹಾಗೂ ತೋಟಗಾರಿಕೆ ಬೆಳೆಗಳಿಗೆ 5% ರಷ್ಟು ಪ್ರೀಮಿಯಂ ಪಾವತಿಸುತ್ತಾರೆ; ಉಳಿದ ಪ್ರೀಮಿಯಂ ಅನ್ನು ಸರ್ಕಾರವು ಪಾವತಿಸುತ್ತದೆ. ಪ್ರತಿ ಹಂಗಾಮಿಗೆ ನಿಮ್ಮ ರಾಜ್ಯವು ನಿಗದಿಪಡಿಸುವ ಕೊನೆಯ ದಿನಾಂಕದೊಳಗೆ ಬ್ಯಾಂಕ್, ಕಾಮನ್ ಸರ್ವೀಸ್ ಸೆಂಟರ್ ಅಥವಾ pmfby.gov.in ಮೂಲಕ ನೊಂದಾಯಿಸಿ. ಬೆಳೆ ನಷ್ಟವನ್ನು 72 ಗಂಟೆಗಳ ಒಳಗೆ ವರದಿ ಮಾಡಿ; PMFBY ಸಹಾಯವಾಣಿ ಸಂಖ್ಯೆ 14447 ಆಗಿದೆ."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
+  },
+  {
+    "id": "scheme_003",
+    "crop": "all",
+    "topic": "government_schemes",
+    "keywords": [
+      "Kisan Credit Card",
+      "KCC",
+      "crop loan",
+      "interest subvention",
+      "किसान क्रेडिट कार्ड",
+      "ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್"
+    ],
+    "content": "The Kisan Credit Card (KCC) gives farmers short-term credit for crop expenses through banks. Under the Modified Interest Subvention Scheme, short-term KCC loans up to ₹3 lakh carry a concessional 7% interest rate, and a 3% prompt-repayment incentive brings the effective rate to 4%. Budget 2025-26 announced raising the loan limit under the scheme to ₹5 lakh. Terms are reviewed every year, so confirm current limits and rates with your bank.",
+    "language": "en",
+    "source_name": "Ministry of Agriculture & Farmers Welfare, reply in Rajya Sabha (18 March 2025)",
+    "source_url": "https://rsdebate.nic.in/bitstream/123456789/759195/1/PQ_267_18032025_U2012_p327_p327.pdf",
+    "verified": true,
+    "scope_note": "Terms as announced for 2025-26; they are reviewed every year.",
+    "translations": {
+      "hi": "किसान क्रेडिट कार्ड (KCC) बैंकों के माध्यम से किसानों को फसल खर्च के लिए अल्पकालिक ऋण देता है। संशोधित ब्याज छूट योजना के तहत, ₹3 लाख तक के अल्पकालिक KCC ऋणों पर 7% की रियायत दर पर ब्याज लगता है, और 3% समय पर पुनर्भुगतान प्रोत्साहन प्रभावी दर को 4% कर देता है। बजट 2025-26 में इस योजना के तहत ऋण सीमा बढ़ाकर ₹5 लाख करने की घोषणा की गई। नियमों की हर साल समीक्षा की जाती है, इसलिए अपने बैंक से मौजूदा सीमाओं और दरों की पुष्टि करें।",
+      "kn": "ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್ (ಕೆಸಿಸಿ) ಬ್ಯಾಂಕ್‌ಗಳ ಮೂಲಕ ರೈತರಿಗೆ ಬೆಳೆ ವೆಚ್ಚಕ್ಕಾಗಿ ಅಲ್ಪಾವಧಿಯ ಸಾಲವನ್ನು ನೀಡುತ್ತದೆ. ಪರಿಷ್ಕೃತ ಬಡ್ಡಿ ಸಬ್ಸಿಡಿ ಯೋಜನೆಯಡಿ, ₹ 3 ಲಕ್ಷದವರೆಗೆ ಅಲ್ಪಾವಧಿಯ ಕೆಸಿಸಿ ಸಾಲಗಳಿಗೆ ಶೇ. 7ರಷ್ಟು ರಿಯಾಯಿತಿ ಬಡ್ಡಿ ದರವಿರುತ್ತದೆ ಮತ್ತು ಶೇ. 3ರಷ್ಟು ತ್ವರಿತ ಮರುಪಾವತಿ ಪ್ರೋತ್ಸಾಹಕದಿಂದಾಗಿ ಪರಿಣಾಮಕಾರಿ ಬಡ್ಡಿ ದರವು ಶೇ. 4ಕ್ಕೆ ತಲುಪುತ್ತದೆ. ಬಜೆಟ್ 2025-26 ಈ ಯೋಜನೆಯಡಿಯಲ್ಲಿ ಸಾಲದ ಮಿತಿಯನ್ನು ₹ 5 ಲಕ್ಷಕ್ಕೆ ಹೆಚ್ಚಿಸುವುದಾಗಿ ಘೋಷಿಸಿದೆ. ನಿಯಮಗಳನ್ನು ಪ್ರತಿವರ್ಷ ಪರಿಶೀಲಿಸಲಾಗುತ್ತದೆ, ಆದ್ದರಿಂದ ನಿಮ್ಮ ಬ್ಯಾಂಕಿನಲ್ಲಿ ಪ್ರಸ್ತುತ ಮಿತಿಗಳು ಮತ್ತು ದರಗಳನ್ನು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ."
+    },
+    "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
+    "translation_reviewed": false
   }
 ]

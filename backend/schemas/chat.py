@@ -1,9 +1,6 @@
-
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
-
-
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     language: Literal["hi", "kn", "en"] = "hi"
@@ -19,8 +16,9 @@ class ChatRequest(BaseModel):
 
         return value
 
-
-
+class ChatSource(BaseModel):
+    source_name: str
+    source_url: str | None = None
 class ChatResponse(BaseModel):
     answer: str
     language: Literal["hi", "kn", "en"]
@@ -33,6 +31,11 @@ class ChatResponse(BaseModel):
 
     source_name: str | None = None
     source_url: str | None = None
+    sources: list[ChatSource] = Field(default_factory=list)
+
+    # Response quality scoring (Milestone 2): low scores are queued for review.
+    quality_score: float | None = None
+    needs_review: bool = False
 
 
 

@@ -1,74 +1,89 @@
+from __future__ import annotations  # lets `str | None` work on Python 3.8+
 
-from functools import lru_cache
+import logging
 import re
+from functools import lru_cache
+
 from transformers import pipeline
 
+logger = logging.getLogger(__name__)
 
-MODEL_NAME = (
-    "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli"
-)
+MODEL_NAME = "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli"
 
+# Used with hypothesis_template below, so each label is a short noun phrase:
+# "This message is about {label}."
+HYPOTHESIS_TEMPLATE = "This message is about {}."
+
+# Labels are written to be distinct (no overlapping wording such as
+# "soil nutrition" appearing in both fertilizer and soil_health).
 INTENT_LABELS = {
-    "crop_care": "asking about general crop care and cultivation",
-    "pest_disease": "asking about crop pests, insects, or plant diseases",
-    "fertilizer": "asking about fertilizers, nutrients, or soil nutrition",
-    "irrigation": "asking about watering crops and irrigation",
-    "weather": "asking about weather, rain, or weather forecasts",
-    "government_schemes": "asking about government agricultural schemes or subsidies",
-    "other": "asking about something unrelated or unclear in agriculture",
+    "crop_care": "general crop care and cultivation practices",
+    "pest_disease": "crop pests, insects, or plant diseases",
+    "fertilizer": "fertilizers, manure, and crop nutrients",
+    "irrigation": "watering crops and irrigation schedules",
+    "weather": "weather, rain, or weather forecasts",
+    "government_schemes": "government agricultural schemes or subsidies",
+    "soil_health": "soil health, soil quality, and soil testing",
+    "crop_rotation": "crop rotation or alternating crops",
+    "yield_management": "increasing or improving crop yield and productivity",
+    "post_harvest": "post-harvest activities or what to do after harvesting",
+    "waterlogging": "waterlogged fields or standing water after rain",
+    "market_prices": "crop market prices, mandi rates, or minimum support price",
+    "expert_support": "agricultural expert advice or Kisan Call Centre support",
+    "other": "something unrelated or unclear",
 }
 
+DESCRIPTION_TO_INTENT = {desc: key for key, desc in INTENT_LABELS.items()}
+
+# Confidence thresholds
+HIGH_CONFIDENCE = 0.80  # model result is trusted even if a keyword disagrees
+LOW_CONFIDENCE = 0.35   # below this the result is flagged as uncertain
+
 # Basic multilingual crop-name dictionary.
-# We can expand this as we add more agricultural data.
 CROP_ALIASES = {
     "rice": [
-    "rice", "paddy", "paddy crop", "rice crop",
-    "धान", "धन", "भात", "ಭತ್ತ", "ಅಕ್ಕಿ",],
+        "rice", "paddy", "paddy crop", "rice crop",
+        "धान", "भात", "ಭತ್ತ", "ಅಕ್ಕಿ",
+    ],
     "wheat": ["wheat", "गेहूं", "गेंहूँ", "ಗೋಧಿ"],
     "maize": ["maize", "corn", "मक्का", "ಮೆಕ್ಕೆಜೋಳ"],
     "cotton": ["cotton", "कपास", "ಹತ್ತಿ"],
     "sugarcane": ["sugarcane", "गन्ना", "ಕಬ್ಬು"],
     "tomato": ["tomato", "टमाटर", "ಟೊಮೇಟೊ", "ಟೊಮ್ಯಾಟೊ"],
+    "potato": ["potato", "आलू", "ಆಲೂಗಡ್ಡೆ"],
+    "onion": ["onion", "प्याज", "प्याज़", "ಈರುಳ್ಳಿ"],
+    "soybean": ["soybean", "soyabean", "सोयाबीन", "ಸೋಯಾಬೀನ್"],
 }
 
+# Single source of truth for topic keywords. It is used for entity extraction
+# AND as the rule-based fallback, so the two can never drift apart.
+# Broad words ("water", "पानी", "ಮಳೆಯ ನಂತರ") were removed because they
+# matched almost any water- or rain-related sentence.
 TOPIC_ALIASES = {
     "fertilizer": [
-        "fertilizer", "fertiliser", "manure", "nutrient",
-        "खाद", "उर्वरक", "पोषक", "गೊಬ್ಬರ", "ಗೊಬ್ಬರ",
-        "ಪೋಷಕಾಂಶ",
+        "fertilizer", "fertiliser", "manure", "nutrient", "urea",
+        "खाद", "उर्वरक", "पोषक", "गोबर की खाद",
+        "ಗೊಬ್ಬರ", "ಪೋಷಕಾಂಶ",
     ],
     "irrigation": [
-        "irrigation", "watering", "water crops","water","how much water",
-        "सिंचाई", "पानी देना","पानी", "ನೀರಾವರಿ", "ನೀರು ಹಾಕು",
-        "ನೀರು ಹಾಕು","ನೀರು",
-        "ನೀರು ಹಾಕಬೇಕು",
-        "ನೀರು ಹಾಯಿಸು",
+        "irrigation", "irrigate", "watering", "water crops", "how much water",
+        "सिंचाई", "पानी देना", "पानी कब",
+        "ನೀರಾವರಿ", "ನೀರು ಹಾಕು", "ನೀರು ಹಾಕಬೇಕು", "ನೀರು ಹಾಯಿಸು",
         "ನೀರನ್ನು ಹಾಕಬೇಕು",
     ],
-    "pest_disease": [
-        "pest", "pests", "insect", "insects", "disease",
-        "कीट", "कीड़े", "कीड़ा", "कीड़े लग गए",
-        "रोग", "बीमारी", "कीट लग गए",
-        "ಕೀಟ", "ರೋಗ",
-    ],
     "weather": [
-        "weather", "rain", "forecast",
-        "मौसम", "बारिश", "ಹವಾಮಾನ", "ಮಳೆ",
+        "weather", "rain", "rainfall", "forecast", "strong winds",
+        "मौसम", "बारिश", "वर्षा", "तेज हवा",
+        "ಹವಾಮಾನ", "ಮಳೆ", "ಗಾಳಿ",
     ],
     "crop_care": [
-        "crop care", "crop cultivation", "crop health",
-        "take care of my crop","care for rice","rice crop care",
-        "देखभाल", "फसल की देखभाल", "ಬೆಳೆ ಆರೈಕೆ","crop management",
-        "ಬೆಳೆ ಆರೈಕೆ", "ಬೆಳೆಗಳನ್ನು ಆರೋಗ್ಯಕರವಾಗಿ",
-"take care of my rice crop",
-"how to grow rice","crop care", "crop cultivation", "crop health",
-"crop management", "care of the crop",
-"care of the paddy crop", "paddy crop care",
-"care of rice", "rice crop care",
-"take care of my crop", "how to grow rice",
-"देखभाल", "फसल की देखभाल", "ಬೆಳೆ ಆರೈಕೆ",
+        "crop care", "crop cultivation", "crop health", "crop management",
+        "take care of my crop", "care of the crop", "how to grow", "cultivate",
+        "देखभाल", "फसल की देखभाल", "खेती कैसे करें",
+       "ಬೆಳೆ ಆರೈಕೆ", "ಬೆಳೆಗಳನ್ನು ಆರೋಗ್ಯಕರವಾಗಿ",
+       "ಭತ್ತದ ಬೆಳೆಯನ್ನು ಹೇಗೆ ಆರೈಕೆ ಮಾಡಬೇಕು",
+      "ಬೆಳೆ ಆರೈಕೆ ಮಾಡುವುದು",
     ],
-
     "soil_health": [
         "soil health", "soil quality", "soil test", "soil testing",
         "मिट्टी की सेहत", "मिट्टी की जांच", "मृदा स्वास्थ्य",
@@ -77,39 +92,72 @@ TOPIC_ALIASES = {
     "crop_rotation": [
         "crop rotation", "rotate crops", "crop sequence",
         "फसल चक्र", "फसल बदलना",
-        "ಬೆಳೆ ಪರಿವರ್ತನೆ", "ಬೆಳೆ ಸರದಿ",
+        "ಬೆಳೆ ಪರಿವರ್ತನೆ", "ಬೆಳೆ ಸರದಿ",  # "ಬೆಳೆ ಸರದಿ" = crop rotation
     ],
     "yield_management": [
         "crop yield", "increase yield", "improve yield",
         "उपज बढ़ाना", "पैदावार बढ़ाना",
         "ಇಳುವರಿ", "ಇಳುವರಿ ಹೆಚ್ಚಿಸುವುದು",
     ],
-   
     "post_harvest": [
-        "after harvest",
-        "post harvest",
-        "next crop after rice",
-        "after rice harvest",
-        "what to do after harvest",
-        "कटाई के बाद",
-        "फसल कटाई के बाद",
-        "ಕೊಯ್ಲಿನ ನಂತರ",
+        "after harvest", "post harvest", "post-harvest", "next crop after rice",
+        "after rice harvest", "what to do after harvest",
+        "कटाई के बाद", "फसल कटाई के बाद", "ಕೊಯ್ಲಿನ ನಂತರ",
     ],
-
+    "pest_disease": [
+        "pest", "pests", "insect", "insects", "disease",
+        "yellow spots", "yellow spot", "spotted leaves", "yellow leaves",
+        "leaf spots",
+        "पीले धब्बे", "पीली पत्तियां", "पत्तियों पर धब्बे",
+        "कीट", "कीड़े", "कीड़ा", "रोग", "बीमारी",
+        "ಹಳದಿ ಕಲೆ", "ಹಳದಿ ಕಲೆಗಳು", "ಎಲೆಗಳಲ್ಲಿ ಹಳದಿ", "ಕೀಟ", "ರೋಗ",
+    ],
     "waterlogging": [
-        "waterlogging", "waterlogged field", "excess water",
-        "खेत में पानी भरना", "जलभराव",
-        "ಹೊಲದಲ್ಲಿ ನೀರು ನಿಲ್ಲುವುದು",
+        "waterlogging", "waterlogged field", "waterlogged", "standing water",
+        "excess water", "water filled field", "standing water after heavy rain",
+        "खेत में पानी भरना", "खेत में पानी भर गया", "जलभराव", "पानी भर गया",
+        "ಹೊಲದಲ್ಲಿ ನೀರು ನಿಲ್ಲುವುದು", "ನೀರು ನಿಂತಿದೆ",
+    ],
+    "market_prices": [
+        "market price", "market prices", "mandi", "mandi rate", "mandi price",
+        "selling price", "crop price", "price of", "msp",
+        "minimum support price",
+        "बाजार भाव", "मंडी भाव", "मंडी", "फसल का भाव", "न्यूनतम समर्थन मूल्य",
+        "ಮಾರುಕಟ್ಟೆ ಬೆಲೆ", "ಮಾರುಕಟ್ಟೆ", "ಬೆಲೆ", "ಕನಿಷ್ಠ ಬೆಂಬಲ ಬೆಲೆ",
+    ],
+    "government_schemes": [
+        "government scheme", "government schemes", "government subsidy",
+        "subsidy", "subsidies", "farmer scheme", "farming scheme",
+        "agricultural scheme", "scheme eligibility",
+        "सरकारी योजना", "सरकारी योजनाएं", "सब्सिडी", "किसान योजना", "कृषि योजना",
+        "ಯೋಜನೆ", "ಸಬ್ಸಿಡಿ", "ಸರ್ಕಾರಿ ಯೋಜನೆ",
     ],
     "expert_support": [
-        "agricultural expert", "expert advice", "kisan call centre",
-        "कृषि विशेषज्ञ", "किसान कॉल सेंटर",
-        "ಕೃಷಿ ತಜ್ಞ", "ಕಿಸಾನ್ ಕಾಲ್ ಸೆಂಟರ್",
+        "agricultural expert", "expert advice", "agricultural advice",
+        "farmer advice", "get agricultural advice", "kisan call centre",
+        "कृषि विशेषज्ञ", "किसान कॉल सेंटर", "कृषि सलाह", "कृषि सलाहकार",
+        "ಕೃಷಿ ತಜ್ಞ", "ಕಿಸಾನ್ ಕಾಲ್ ಸೆಂಟರ್", "ಕೃಷಿ ಸಲಹೆ",
     ],
-
 }
 
-# Starter dictionary only. Add more locations relevant to your users.
+# When several topics are mentioned, the more specific one wins.
+TOPIC_PRIORITY = [
+    "waterlogging",
+    "pest_disease",
+    "fertilizer",
+    "crop_care",
+    "soil_health",
+    "crop_rotation",
+    "yield_management",
+    "post_harvest",
+    "expert_support",
+    "market_prices",
+    "government_schemes",
+    "weather",
+    "irrigation",
+    
+]
+
 LOCATION_ALIASES = {
     "Kanpur": ["kanpur", "कानपुर", "ಕಾನ್ಪುರ"],
     "Bengaluru": ["bengaluru", "bangalore", "ಬೆಂಗಳೂರು"],
@@ -117,7 +165,6 @@ LOCATION_ALIASES = {
     "Delhi": ["delhi", "दिल्ली", "ದೆಹಲಿ"],
     "Lucknow": ["lucknow", "लखनऊ", "ಲಕ್ನೋ"],
 }
-
 
 
 @lru_cache(maxsize=1)
@@ -130,6 +177,16 @@ def get_classifier():
     )
 
 
+def detect_language(text: str) -> str:
+    """Guess the language from the dominant script (en / hi / kn)."""
+    devanagari = sum("\u0900" <= ch <= "\u097F" for ch in text)
+    kannada = sum("\u0C80" <= ch <= "\u0CFF" for ch in text)
+
+    if devanagari == 0 and kannada == 0:
+        return "en"
+    return "hi" if devanagari >= kannada else "kn"
+
+
 def contains_alias(text: str, alias: str) -> bool:
     """Match English terms as whole words and Indic terms by phrase."""
     alias = alias.casefold().strip()
@@ -137,209 +194,120 @@ def contains_alias(text: str, alias: str) -> bool:
     if not alias:
         return False
 
-    if re.fullmatch(r"[a-z0-9 ]+", alias):
+    if re.fullmatch(r"[a-z0-9 \-]+", alias):
         pattern = r"(?<!\w)" + re.escape(alias) + r"(?!\w)"
         return re.search(pattern, text, flags=re.IGNORECASE) is not None
 
     return alias in text
 
 
+def _match(normalized: str, alias_map: dict) -> list:
+    return [
+        key
+        for key, aliases in alias_map.items()
+        if any(contains_alias(normalized, alias) for alias in aliases)
+    ]
+
+
 def extract_entities(text: str) -> dict:
     """Extract supported crop, topic, and location entities."""
     normalized = text.casefold()
 
-    crops = [
-        crop
-        for crop, aliases in CROP_ALIASES.items()
-        if any(contains_alias(normalized, alias) for alias in aliases)
-    ]
-
-    topics = [
-        topic
-        for topic, aliases in TOPIC_ALIASES.items()
-        if any(contains_alias(normalized, alias) for alias in aliases)
-    ]
-
-    locations = [
-        location
-        for location, aliases in LOCATION_ALIASES.items()
-        if any(contains_alias(normalized, alias) for alias in aliases)
-    ]
-
     return {
-        "crops": crops,
-        "topics": topics,
-        "locations": locations,
+        "crops": _match(normalized, CROP_ALIASES),
+        "topics": _match(normalized, TOPIC_ALIASES),
+        "locations": _match(normalized, LOCATION_ALIASES),
     }
 
 
+def pick_topic_by_priority(topics: list) -> str | None:
+    """Return the highest-priority topic from a list of detected topics."""
+    return next((t for t in TOPIC_PRIORITY if t in topics), None)
 
 
 def detect_intent_from_keywords(text: str) -> str | None:
-    """Fallback for clear agricultural terms in supported languages."""
-
-    text = text.casefold()
-
-    
-    keyword_groups = {
-        "government_schemes": [
-            "government scheme", "government schemes",
-            "government subsidy", "government subsidies",
-            "subsidy", "subsidies", "farmer scheme",
-            "farming scheme", "agricultural scheme",
-            "agricultural support program", "agricultural support programme",
-            "scheme eligibility", "farmer eligibility",
-            "सरकारी योजना", "सरकारी योजनाएं", "सब्सिडी",
-            "किसान योजना", "कृषि योजना",
-            "ಯೋಜನೆ", "ಸಬ್ಸಿಡಿ", "ಸರ್ಕಾರಿ ಯೋಜನೆ",
-        ],
-        "pest_disease": [
-            "pest", "pests", "insect", "insects", "aphid", "aphids",
-            "fungal infection", "fungus", "fungal disease",
-            "plant disease", "crop disease", "disease", "diseases",
-            "कीट", "कीड़े", "कीड़ा", "कीड़े लग गए",
-            "रोग", "बीमारी", "फफूंद", "माहू",
-            "ಕೀಟ", "ರೋಗ", "ಶಿಲೀಂಧ್ರ",
-        ],
-        "fertilizer": [
-            "fertilizer", "fertiliser", "manure", "nutrient",
-            "nutrients", "soil nutrition", "urea",
-            "खाद", "उर्वरक", "पोषक", "गोबर की खाद",
-            "ಗೊಬ್ಬರ", "ಪೋಷಕಾಂಶ",
-        ],
-        "irrigation": [
-            "irrigation", "irrigate", "irrigated", "watering",
-            "water crops", "water the crop", "water the plants",
-            "how much water", "when should i water",
-            "how often should", "water supply",
-            "सिंचाई", "पानी देना", "पानी कब", "पानी",
-            "ನೀರಾವರಿ", "ನೀರು ಹಾಕು", "ನೀರು ಹಾಕಬೇಕು",
-            "ನೀರು ಹಾಯಿಸು", "ನೀರನ್ನು ಹಾಕಬೇಕು",
-        ],
-        "weather": [
-            "weather", "rain", "rainfall", "forecast",
-            "strong winds", "strong wind", "heavy wind",
-            "weather conditions", "weather forecast",
-            "मौसम", "बारिश", "वर्षा", "तेज हवा", "आंधी",
-            "ಹವಾಮಾನ", "ಮಳೆ", "ಗಾಳಿ",
-        ],
-        "crop_care": [
-            "crop care", "crop cultivation", "crop health",
-            "crop management", "care of the crop",
-            "take care of my crop", "take care of my rice crop",
-            "look after", "how to grow", "how do i grow",
-            "best way to grow", "cultivate", "cultivation",
-            "improve tomato growth", "plant growth",
-            "paddy crop care", "rice crop care", "care of rice",
-            "देखभाल", "फसल की देखभाल", "खेती कैसे करें",
-            "फसल कैसे उगाएं", "फसल उगाने",
-            "ಬೆಳೆ ಆರೈಕೆ", "ಬೆಳೆ ಬೆಳೆಸುವುದು",
-        ],
-        "soil_health": [
-            "soil health", "soil quality", "soil test", "soil testing",
-            "soil nutrients", "मिट्टी की सेहत", "मिट्टी की जांच",
-            "मृदा स्वास्थ्य", "ಮಣ್ಣಿನ ಆರೋಗ್ಯ", "ಮಣ್ಣಿನ ಪರೀಕ್ಷೆ",
-        ],
-        "crop_rotation": [
-            "crop rotation", "rotate crops", "crop sequence",
-            "फसल चक्र", "फसल बदलना",
-            "ಬೆಳೆ ಪರಿವರ್ತನೆ", "ಬೆಳೆ ಸರದಿ",
-        ],
-        "yield_management": [
-            "crop yield", "increase yield", "improve yield",
-            "उपज बढ़ाना", "पैदावार बढ़ाना",
-            "ಇಳುವರಿ", "ಇಳುವರಿ ಹೆಚ್ಚಿಸುವುದು",
-        ],
-        "post_harvest": [
-            "after harvest", "post harvest", "next crop after rice",
-            "after rice harvest", "what to do after harvest",
-            "कटाई के बाद", "फसल कटाई के बाद", "ಕೊಯ್ಲಿನ ನಂತರ",
-        ],
-        "waterlogging": [
-            "waterlogging", "waterlogged field", "excess water",
-            "खेत में पानी भरना", "जलभराव",
-            "ಹೊಲದಲ್ಲಿ ನೀರು ನಿಲ್ಲುವುದು",
-        ],
-        "expert_support": [
-            "agricultural expert", "expert advice", "kisan call centre",
-            "कृषि विशेषज्ञ", "किसान कॉल सेंटर",
-            "ಕೃಷಿ ತಜ್ಞ", "ಕಿಸಾನ್ ಕಾಲ್ ಸೆಂಟರ್",
-        ],
-    }
+    """Keyword-only intent detection (used if the model is unavailable)."""
+    topics = extract_entities(text)["topics"]
+    return pick_topic_by_priority(topics)
 
 
-    for intent, keywords in keyword_groups.items():
-        if any(keyword in text for keyword in keywords):
-            return intent
+def run_model(text: str) -> tuple[str | None, float]:
+    """Run the zero-shot model. Returns (None, 0.0) if it cannot be used."""
+    try:
+        result = get_classifier()(
+            text,
+            candidate_labels=list(INTENT_LABELS.values()),
+            hypothesis_template=HYPOTHESIS_TEMPLATE,
+            multi_label=False,
+        )
+    except Exception:  # model download/load/inference failure
+        logger.exception("Zero-shot classifier failed; using keyword rules only.")
+        return None, 0.0
 
-    return None
+    intent = DESCRIPTION_TO_INTENT[result["labels"][0]]
+    return intent, float(result["scores"][0])
 
 
+def resolve_intent(
+    model_intent: str | None, confidence: float, topics: list
+) -> tuple[str, str]:
+    """Combine model prediction and keyword rules. Returns (intent, source)."""
+    keyword_intent = pick_topic_by_priority(topics)
+
+    # Model unavailable: rely on keywords only.
+    if model_intent is None:
+        return (keyword_intent or "other"), "keyword_rule"
+
+    # Model and keywords agree (or the model's pick is one of the mentioned topics).
+    if model_intent != "other" and model_intent in topics:
+        return model_intent, "model"
+
+    if keyword_intent:
+        # A very confident, specific model prediction beats a conflicting keyword.
+        if model_intent != "other" and confidence >= HIGH_CONFIDENCE:
+            return model_intent, "model"
+        return keyword_intent, "keyword_rule"
+
+    return model_intent, "model"
 
 
+def analyze_intent(text: str, language: str | None = None) -> dict:
+    """Classify a request and extract agricultural entities.
 
-def analyze_intent(text: str, language: str = "en") -> dict:
-    """Classify a request and extract agricultural entities."""
+    `language` may be "en", "hi", "kn", or None/"auto" to detect it from the script.
+    """
+    if not isinstance(text, str):
+        raise TypeError("Message must be a string.")
+
     text = text.strip()
-
     if not text:
         raise ValueError("Message cannot be empty.")
 
+    if language is None or language == "auto":
+        language = detect_language(text)
+
     entities = extract_entities(text)
-    classifier = get_classifier()
-
-    result = classifier(
-        text,
-        candidate_labels=list(INTENT_LABELS.values()),
-        multi_label=False,
-    )
-
-    predicted_description = result["labels"][0]
-    confidence = float(result["scores"][0])
-
-    intent = next(
-        key
-        for key, description in INTENT_LABELS.items()
-        if description == predicted_description
-    )
-
-    fallback_used = False
-
-    # Explicitly mentioned topics should take priority over a
-    # conflicting general model prediction.
-    topic_priority = [
-        "pest_disease",
-        "fertilizer",
-        "irrigation",
-        "weather",
-        "government_schemes",
-        "soil_health",
-        "crop_rotation",
-        "yield_management",
-        "post_harvest",
-        "waterlogging",
-        "expert_support",
-    ]
-
-    explicit_topic = next(
-        (topic for topic in topic_priority if topic in entities["topics"]),
-        None,
-    )
-
-    if explicit_topic:
-        intent = explicit_topic
-        fallback_used = True
-    elif confidence < 0.35 or intent == "other":
-        fallback_intent = detect_intent_from_keywords(text)
-        if fallback_intent:
-            intent = fallback_intent
-            fallback_used = True
+    model_intent, confidence = run_model(text)
+    intent, source = resolve_intent(model_intent, confidence, entities["topics"])
 
     return {
         "language": language,
         "intent": intent,
+        "intent_source": source,
         "confidence": round(confidence, 4),
+        "low_confidence": source == "model" and confidence < LOW_CONFIDENCE,
         "entities": entities,
         "classification_model": MODEL_NAME,
-        "fallback_used": fallback_used,
+        "fallback_used": source == "keyword_rule",
     }
+
+
+if __name__ == "__main__":
+    samples = [
+        "How much urea should I apply to my wheat crop in Kanpur?",
+        "What is the mandi price of tomato today?",
+        "मेरे धान के खेत में पानी भर गया है",
+        "ನನ್ನ ಬೆಳೆಯ ಎಲೆಗಳಲ್ಲಿ ಹಳದಿ ಕಲೆಗಳು ಕಾಣಿಸುತ್ತಿವೆ",
+    ]
+    for sample in samples:
+        print(sample, "->", analyze_intent(sample))

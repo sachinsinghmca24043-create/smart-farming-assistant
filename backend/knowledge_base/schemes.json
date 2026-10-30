@@ -1,0 +1,35 @@
+[
+  {
+    "id": "pm_kisan",
+    "name": "PM-KISAN (Pradhan Mantri Kisan Samman Nidhi)",
+    "benefit": "Income support of ₹6,000 per year per eligible landholding farmer family, paid in three equal instalments of ₹2,000 into an Aadhaar-linked bank account.",
+    "how_to_apply": "Register on pmkisan.gov.in (Farmers Corner) or at a Common Service Centre. e-KYC is required, and the bank account must be linked with Aadhaar.",
+    "documents": ["Aadhaar number", "Bank account details (Aadhaar-seeded)", "Land ownership records", "Mobile number"],
+    "official_url": "https://pmkisan.gov.in/",
+    "helpline": "155261 or 011-24300606 (check the official portal for current numbers)",
+    "last_verified": "2026-10-29",
+    "source_note": "PM-KISAN official portal and operational guidelines."
+  },
+  {
+    "id": "pmfby",
+    "name": "PMFBY (Pradhan Mantri Fasal Bima Yojana, crop insurance)",
+    "benefit": "Insurance against crop loss from natural calamities, pests and diseases. Farmer pays at most 2% of the sum insured for kharif food and oilseed crops, 1.5% for rabi food and oilseed crops, and 5% for annual commercial and horticultural crops; the government pays the rest.",
+    "how_to_apply": "Enrol through your bank, a Common Service Centre or pmfby.gov.in before the cut-off date your state notifies for the season. Report crop loss within 72 hours through the PMFBY helpline or your insurer.",
+    "documents": ["Aadhaar number", "Land records or tenancy/sharecropping proof", "Bank account details", "Sowing declaration"],
+    "official_url": "https://pmfby.gov.in/",
+    "helpline": "14447",
+    "last_verified": "2026-10-29",
+    "source_note": "PMFBY operational guidelines (premium caps); enrolment dates are notified by each state."
+  },
+  {
+    "id": "kcc",
+    "name": "Kisan Credit Card (KCC) with interest subvention",
+    "benefit": "Short-term farm credit from banks. Under the Modified Interest Subvention Scheme, short-term KCC loans up to ₹3 lakh carry a concessional 7% interest rate, and a 3% prompt-repayment incentive brings the effective rate to 4%. Budget 2025-26 announced raising the loan limit under the scheme to ₹5 lakh.",
+    "how_to_apply": "Apply at any commercial bank, regional rural bank or cooperative bank with your land records and Aadhaar. Confirm the current limit, rate and collateral rules with the bank.",
+    "documents": ["Aadhaar number", "Land records or tenancy proof", "Passport-size photographs", "Bank KYC documents"],
+    "official_url": "https://www.nabard.org/",
+    "helpline": "Your bank branch or the Kisan Call Centre 1800-180-1551",
+    "last_verified": "2026-10-29",
+    "source_note": "Ministry of Agriculture & Farmers Welfare reply in Rajya Sabha (18 March 2025); terms are reviewed every year."
+  }
+]
