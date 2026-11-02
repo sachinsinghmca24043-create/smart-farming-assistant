@@ -25,6 +25,8 @@ from fastapi import (  # noqa: E402
     Query,
     UploadFile,
 )
+
+from schemas.chat import ChatRequest, ChatResponse
 from fastapi.concurrency import run_in_threadpool  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from langdetect import DetectorFactory, LangDetectException, detect  # noqa: E402
@@ -318,6 +320,7 @@ WEATHER_KEYWORDS = (
 CITIES = {
     "Meerut": ("Uttar Pradesh", ["meerut", "मेरठ", "ಮೀರತ್"]),
     "Delhi": ("NCT of Delhi", ["delhi", "दिल्ली", "ದೆಹಲಿ"]),
+    "Noida": ("Uttar Pradesh", ["noida", "नोएडा", "ನೋಯ್ಡಾ"]),
     "Lucknow": ("Uttar Pradesh", ["lucknow", "लखनऊ", "ಲಕ್ನೋ"]),
     "Kanpur": ("Uttar Pradesh", ["kanpur", "कानपुर", "ಕಾನ್ಪುರ"]),
     "Bengaluru": ("Karnataka", ["bengaluru", "bangalore", "बेंगलुरु", "बैंगलोर", "ಬೆಂಗಳೂರು"]),
@@ -361,7 +364,7 @@ def extract_weather_city(message: str) -> str | None:
 
     # English patterns such as "weather in Agra tomorrow" / "forecast for Varanasi".
     match = re.search(
-        r"\b(?:in|for|at)\s+"
+        r"\b(?:in|for|at|of)\s+"
         r"([A-Za-z][A-Za-z .'-]{1,50}?)"
         r"(?=\s+(?:today|tomorrow|tonight|now|currently|"
         r"this week|next week)\b|[?.!,]|$)",
@@ -393,9 +396,16 @@ def extract_weather_city(message: str) -> str | None:
 MARKET_KEYWORDS = (
     "mandi", "market price", "market prices", "crop price",
     "commodity price", "selling price", "current price",
-    "price of", "prices of", "wheat price", "rice price",
-    "गेहूं का भाव", "धान का भाव", "मंडी भाव", "भाव",
-    "ಮಾರುಕಟ್ಟೆ ಬೆಲೆ", "ಮಂಡಿ ಬೆಲೆ", "ಬೆಲೆ",
+    "latest price", "today price", "price today",
+    "price of", "prices of",
+    "wheat price", "wheat prices",
+    "rice price", "rice prices",
+    "paddy price", "paddy prices",
+    "latest paddy", "today paddy",
+    "latest rice", "today rice",
+    "गेहूं का भाव", "धान का भाव", "चावल का भाव",
+    "आज का भाव", "आज का मंडी भाव", "मंडी भाव",
+    "ಮಾರುಕಟ್ಟೆ ಬೆಲೆ", "ಮಂಡಿ ಬೆಲೆ", "ಇಂದಿನ ಬೆಲೆ",
 )
 
 # AGMARKNET commodity name -> aliases (English / Hindi / Kannada).
@@ -579,7 +589,40 @@ async def handle_weather(
         return Outcome(msg("weather_unavailable", language), kind="unavailable")
 
     session.context["city"] = city
-    return Outcome(json.dumps(weather_data, ensure_ascii=False), weather=weather_data)
+
+    current = weather_data.get("current", {})
+    daily_forecast = weather_data.get("daily_forecast", [])
+    units = weather_data.get("units", {})
+    current_units = units.get("current", {})
+
+    location = weather_data.get("location", {})
+    city_name = location.get("name", city)
+    region = location.get("region", "")
+
+    answer_lines = [
+    f"Current weather in {city_name}, {region}:",
+    f"Temperature: {current.get('temperature_2m', 'N/A')} "
+    f"{current_units.get('temperature_2m', '°C')}",
+    f"Feels like: {current.get('apparent_temperature', 'N/A')} "
+    f"{current_units.get('apparent_temperature', '°C')}",
+    f"Humidity: {current.get('relative_humidity_2m', 'N/A')}%",
+    f"Rainfall: {current.get('precipitation', 'N/A')} mm",
+    f"Wind speed: {current.get('wind_speed_10m', 'N/A')} km/h",
+    f"Condition: {current.get('weather_description', 'Not available')}",
+    "",
+    "3-Day Weather Forecast:",
+    ]
+    for day in daily_forecast:
+        answer_lines.append(
+            f"{day.get('date')}: "
+        f"{day.get('weather_description', 'Not available')}, "
+        f"Minimum: {day.get('temperature_2m_min', 'N/A')}°C, "
+        f"Maximum: {day.get('temperature_2m_max', 'N/A')}°C"
+    )
+
+    answer = "\n".join(answer_lines)
+
+    return Outcome(answer, weather=weather_data)
 
 
 async def handle_market(message: str, language: str, crop: str | None) -> Outcome:
@@ -615,7 +658,33 @@ async def handle_market(message: str, language: str, crop: str | None) -> Outcom
             kind="clarification",  # nothing wrong with the service; ask for another crop/state
         )
 
-    return Outcome(json.dumps(market_data, ensure_ascii=False), market=market_data)
+        # Format live mandi records into a farmer-friendly response.
+    latest_date = market_data.get("latest_arrival_date", "Not available")
+    currency_unit = "₹/quintal"
+
+    lines = [
+        f"Latest available {commodity} market prices in {state or 'India'}:",
+        f"Arrival date: {latest_date}",
+        "",
+    ]
+
+    for record in records:
+        lines.append(
+            f"{record.get('district', 'Unknown district')} "
+            f"({record.get('market', 'Unknown market')}): "
+            f"Modal price {currency_unit} "
+            f"{record.get('modal_price', 'N/A')}. "
+            f"Minimum: ₹{record.get('min_price', 'N/A')}, "
+            f"Maximum: ₹{record.get('max_price', 'N/A')}. "
+            f"Variety: {record.get('variety', 'Not specified')}."
+        )
+
+    lines.append(
+        "Prices vary by market, variety and quality. "
+        "Please confirm the latest rate with your local mandi."
+    )
+
+    return Outcome("\n".join(lines), market=market_data)
 
 
 async def localize_record(record: dict, language: str) -> tuple[str, bool]:
@@ -662,6 +731,7 @@ async def handle_knowledge(
                 crop=crop,
                 topic=None if intent == "crop_care" else intent,
                 limit=3,
+                state=extract_market_state(message),
             )
         except Exception:
             logger.exception("Knowledge search failed; using fallback response.")
@@ -775,24 +845,79 @@ def build_sources(
     market_data: dict | None,
     used_records: list[dict],
 ) -> list[dict]:
-    """Collect de-duplicated sources for exactly what the answer used."""
+    """Collect de-duplicated, traceable sources used in the answer."""
+
     sources: list[dict] = []
     seen: set[tuple] = set()
 
-    def add(name: str | None, url: str | None) -> None:
-        key = (name, url)
-        if name and key not in seen:
-            seen.add(key)
-            sources.append({"source_name": name, "source_url": url})
+    def add(
+        name: str | None,
+        url: str | None,
+        **metadata,
+    ) -> None:
+        if not name:
+            return
+
+        key = (
+            name,
+            url,
+            metadata.get("page_start"),
+            metadata.get("page_end"),
+            metadata.get("source_type"),
+        )
+
+        if key in seen:
+            return
+
+        seen.add(key)
+
+        source = {
+            "source_name": name,
+            "source_url": url,
+        }
+
+        for field in (
+            "page_start",
+            "page_end",
+            "source_file",
+            "source_type",
+            "verified",
+            "review_status",
+        ):
+            if metadata.get(field) is not None:
+                source[field] = metadata[field]
+
+        sources.append(source)
 
     if weather_data:
-        add("Open-Meteo", "https://open-meteo.com/")
+        add(
+            "Open-Meteo",
+            "https://open-meteo.com/",
+            source_type="live_weather",
+            verified=True,
+            review_status="not_applicable",
+        )
 
     if market_data:
-        add("AGMARKNET / data.gov.in", "https://www.data.gov.in/")
+        add(
+            "AGMARKNET / data.gov.in",
+            "https://www.data.gov.in/",
+            source_type="live_market",
+            verified=True,
+            review_status="not_applicable",
+        )
 
     for record in used_records:
-        add(record.get("source_name"), record.get("source_url") or None)
+        add(
+            record.get("source_name"),
+            record.get("source_url") or None,
+            page_start=record.get("page_start"),
+            page_end=record.get("page_end"),
+            source_file=record.get("source_file"),
+            source_type=record.get("_source_type"),
+            verified=bool(record.get("verified", False)),
+            review_status=record.get("review_status"),
+        )
 
     return sources
 

@@ -1,26 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
 // -------------------------------------------------------------------
 // Configuration
 // -------------------------------------------------------------------
 
-// Set NEXT_PUBLIC_API_BASE_URL in .env.local to point at another backend.
 const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1"
 ).replace(/\/$/, "");
 
 const SESSION_STORAGE_KEY = "smart-farming-session";
-// Same rule the backend uses to accept a session id.
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_.:-]{8,128}$/;
 
-const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // backend limit
-const MAX_RECORDING_MS = 60_000; // auto-stop long recordings
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+const MAX_RECORDING_MS = 60_000;
 const DEFAULT_TIMEOUT_MS = 20_000;
 const CHAT_TIMEOUT_MS = 60_000;
-// The first transcription can be slow while speech models load.
 const TRANSCRIBE_TIMEOUT_MS = 120_000;
 
 type LangCode = "hi" | "kn" | "en";
@@ -42,7 +39,6 @@ const LANG_NAMES: Record<LangCode, string> = {
   kn: "Kannada",
 };
 
-// NOTE: have a native speaker review the Hindi and Kannada words below.
 const MARKET_WORDS: Record<
   LangCode,
   { min: string; max: string; modal: string; unit: string }
@@ -57,8 +53,6 @@ const COMMODITY_OPTIONS = [
   "Mustard", "Maize", "Soyabean", "Cotton", "Pumpkin",
 ];
 
-// State names exactly as AGMARKNET spells them (including "Chattisgarh",
-// "Uttrakhand" and "NCT of Delhi"), because the API matches them literally.
 const STATE_OPTIONS = [
   "Andaman and Nicobar", "Andhra Pradesh", "Assam", "Bihar", "Chandigarh",
   "Chattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh",
@@ -219,7 +213,6 @@ function errMsg(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
 }
 
-/** fetch() with a timeout and friendly errors. Paths are relative to API_BASE. */
 async function apiFetch(
   path: string,
   init: RequestInit = {},
@@ -245,7 +238,6 @@ async function apiFetch(
   }
 }
 
-/** Turn a FastAPI error body into a readable message. */
 async function readError(response: Response, fallback: string): Promise<string> {
   try {
     const body = await response.json();
@@ -260,13 +252,12 @@ async function readError(response: Response, fallback: string): Promise<string> 
       if (messages.length) return messages.join("; ");
     }
   } catch {
-    // Body was not JSON; fall through.
+    // Fall through
   }
 
   return `${fallback} (HTTP ${response.status}).`;
 }
 
-/** The database stores UTC timestamps without a timezone ("YYYY-MM-DD HH:MM:SS"). */
 function formatTime(value?: string | null): string {
   if (!value) return "";
 
@@ -283,7 +274,6 @@ function formatTime(value?: string | null): string {
   });
 }
 
-/** Only allow http(s) links so a bad record can never inject a javascript: URL. */
 function safeUrl(url?: string | null): string | null {
   return url && /^https?:\/\//i.test(url) ? url : null;
 }
@@ -295,7 +285,6 @@ function humanize(key: string): string {
     .replace(/^./, (char) => char.toUpperCase());
 }
 
-/** Flatten a JSON object into readable [label, value] rows. */
 function flattenEntries(
   value: unknown,
   prefix = "",
@@ -328,10 +317,6 @@ function flattenEntries(
   return out;
 }
 
-/**
- * Weather and market answers arrive from the backend as JSON text.
- * Parse them so they can be shown (and spoken) as readable content.
- */
 function parseStructured(
   intent: string | null | undefined,
   answer: string
@@ -355,11 +340,10 @@ function parseStructured(
     const entries = flattenEntries(parsed);
     return entries.length ? { kind: "weather", entries } : null;
   } catch {
-    return null; // e.g. a stored answer that was truncated
+    return null;
   }
 }
 
-/** Plain text for text-to-speech (never read raw JSON aloud). */
 function answerToSpeech(
   intent: string | null | undefined,
   answer: string,
@@ -422,12 +406,6 @@ function micErrorMessage(err: unknown): string {
   return errMsg(err, "Unable to access the microphone.");
 }
 
-/**
- * Browsers record microphone audio as WebM/Opus (Chrome, Firefox) or MP4/AAC
- * (Safari). Many server-side decoders cannot read those without ffmpeg, which
- * is the usual cause of "could not decode audio file". Converting to plain
- * 16 kHz mono WAV in the browser works on every server.
- */
 function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
@@ -442,13 +420,13 @@ function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   view.setUint32(4, 36 + samples.length * 2, true);
   writeText(8, "WAVE");
   writeText(12, "fmt ");
-  view.setUint32(16, 16, true); // PCM header size
-  view.setUint16(20, 1, true); // PCM format
-  view.setUint16(22, 1, true); // mono
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
   view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true); // bytes per second
-  view.setUint16(32, 2, true); // bytes per sample frame
-  view.setUint16(34, 16, true); // bits per sample
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
   writeText(36, "data");
   view.setUint32(40, samples.length * 2, true);
 
@@ -472,13 +450,13 @@ async function convertToWav(blob: Blob): Promise<Blob> {
   try {
     const decoded = await context.decodeAudioData(await blob.arrayBuffer());
 
-    const targetRate = 16000; // what speech-recognition models expect
+    const targetRate = 16000;
     const frames = Math.max(1, Math.ceil(decoded.duration * targetRate));
     const offline = new OfflineAudioContext(1, frames, targetRate);
 
     const source = offline.createBufferSource();
     source.buffer = decoded;
-    source.connect(offline.destination); // mixes down to mono
+    source.connect(offline.destination);
     source.start();
 
     const rendered = await offline.startRendering();
@@ -536,7 +514,6 @@ function EntryList({ entries }: { entries: [string, string][] }) {
   );
 }
 
-/** Renders an assistant answer: tables for prices, rows for weather, else text. */
 function AnswerBody({
   intent,
   answer,
@@ -616,7 +593,7 @@ function SchemeCard({ scheme }: { scheme: SchemeResult }) {
 }
 
 // -------------------------------------------------------------------
-// Icons and decorative art (UI only)
+// Icons
 // -------------------------------------------------------------------
 
 const ICONS = {
@@ -682,10 +659,30 @@ function Icon({ name, className = "h-5 w-5" }: { name: IconName; className?: str
   );
 }
 
+function Logo({ className = "h-12 w-12" }: { className?: string }) {
+  const uid = useId().replace(/:/g, "");
 
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden="true" className={className}>
+      <defs>
+        <linearGradient id={`${uid}-a`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#22c55e" />
+          <stop offset="1" stopColor="#15803d" />
+        </linearGradient>
+        <linearGradient id={`${uid}-b`} x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#86efac" />
+          <stop offset="1" stopColor="#16a34a" />
+        </linearGradient>
+      </defs>
+      <path d="M24 44C23 30 15 23 5 10c14-2 24 6 19 34Z" fill={`url(#${uid}-a)`} />
+      <path d="M24 44c1-14 9-21 19-34-14-2-24 6-19 34Z" fill={`url(#${uid}-b)`} />
+      <path d="M24 44V22" stroke="#f0fdf4" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 // -------------------------------------------------------------------
-// Page
+// Page Component
 // -------------------------------------------------------------------
 
 export default function Home() {
@@ -737,7 +734,7 @@ export default function Home() {
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const recordTimerRef = useRef<number | null>(null);
-  const requestIdRef = useRef(0); // lets us ignore answers for a chat the user left
+  const requestIdRef = useRef(0);
   const sessionIdRef = useRef<string | null>(null);
   const languageRef = useRef<LanguageChoice>("auto");
   const lastLanguageRef = useRef<LangCode>("en");
@@ -748,13 +745,23 @@ export default function Home() {
     languageRef.current = language;
   }, [language]);
 
-  // Keep the newest message in view.
   useEffect(() => {
-    const element = conversationRef.current;
-    if (element) element.scrollTop = element.scrollHeight;
-  }, [activeMessages, loading]);
+    const scroller = conversationRef.current;
+    if (!scroller) return;
 
-  // ----- session helpers -----
+    const isTool = ["Weather", "Market Prices", "Schemes", "Farming Tips"].includes(activeNav);
+    if (isTool || (activeMessages.length === 0 && !loading)) {
+      scroller.scrollTo({ top: 0 });
+      return;
+    }
+
+    if (!loading && result) {
+      document.getElementById("latest-answer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+    }
+  }, [activeMessages, loading, result, activeNav]);
+
   const applySession = useCallback((id: string | null) => {
     sessionIdRef.current = id;
     setSessionId(id);
@@ -762,7 +769,7 @@ export default function Home() {
       if (id) localStorage.setItem(SESSION_STORAGE_KEY, id);
       else localStorage.removeItem(SESSION_STORAGE_KEY);
     } catch {
-      // Storage can be unavailable (private mode); the chat still works.
+      // Storage unavailable
     }
   }, []);
 
@@ -773,7 +780,6 @@ export default function Home() {
     setIsSpeaking(false);
   }, []);
 
-  // ----- history -----
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     setHistoryError("");
@@ -797,7 +803,6 @@ export default function Home() {
     }
   }, []);
 
-  /** Returns a conversation's messages, or null if they could not be loaded. */
   const loadSession = useCallback(
     async (id: string, silent = false): Promise<HistoryMessage[] | null> => {
       try {
@@ -815,7 +820,6 @@ export default function Home() {
     []
   );
 
-  // Restore the last conversation and the sidebar on first load.
   useEffect(() => {
     let saved: string | null = null;
     try {
@@ -832,13 +836,12 @@ export default function Home() {
         if (messages) setActiveMessages(messages);
       })();
     } else if (saved) {
-      applySession(null); // drop an id the backend would reject
+      applySession(null);
     }
 
     void loadHistory();
   }, [applySession, loadHistory, loadSession]);
 
-  // Release the microphone and stop speech if the page is closed.
   useEffect(() => {
     return () => {
       if (recordTimerRef.current) window.clearTimeout(recordTimerRef.current);
@@ -854,7 +857,6 @@ export default function Home() {
     };
   }, []);
 
-  // ----- sending a message (text, microphone and file upload all use this) -----
   const submitMessage = useCallback(
     async (message: string, lang: LangCode): Promise<boolean> => {
       const requestId = ++requestIdRef.current;
@@ -863,6 +865,15 @@ export default function Home() {
       setError("");
       setResult(null);
       stopSpeaking();
+
+      const pending: HistoryMessage = {
+        role: "user",
+        message,
+        language: lang,
+        intent: null,
+        created_at: new Date().toISOString(),
+      };
+      setActiveMessages((old) => [...old, pending]);
 
       try {
         const response = await apiFetch(
@@ -884,7 +895,7 @@ export default function Home() {
         }
 
         const data: AnalysisResult = await response.json();
-        if (requestId !== requestIdRef.current) return false; // user moved on
+        if (requestId !== requestIdRef.current) return false;
 
         setResult(data);
         applySession(data.session_id);
@@ -896,10 +907,9 @@ export default function Home() {
         if (messages) {
           setActiveMessages(messages);
         } else {
-          // History could not be reloaded; still show this exchange.
           const now = new Date().toISOString();
           setActiveMessages((old) => [
-            ...old,
+            ...old.filter((item) => item !== pending),
             { role: "user", message, language: lang, intent: data.intent, created_at: now },
             { role: "assistant", message: data.answer, language: data.language, intent: data.intent, created_at: now },
           ]);
@@ -910,6 +920,7 @@ export default function Home() {
       } catch (err) {
         if (requestId === requestIdRef.current) {
           setError(errMsg(err, "Unable to get an answer."));
+          setActiveMessages((old) => old.filter((item) => item !== pending));
         }
         return false;
       } finally {
@@ -919,7 +930,6 @@ export default function Home() {
     [applySession, loadHistory, loadSession, stopSpeaking]
   );
 
-  // ----- language handling -----
   async function detectLanguage(message: string): Promise<LangCode | null> {
     try {
       const response = await apiFetch("/detect-language", {
@@ -936,7 +946,6 @@ export default function Home() {
     }
   }
 
-  /** Use the chosen language, else the detected one, else the last one used. */
   function chooseLanguage(detected: unknown): LangCode {
     const selected = languageRef.current;
     if (isLangCode(selected)) return selected;
@@ -949,7 +958,6 @@ export default function Home() {
     return lastLanguageRef.current;
   }
 
-  // ----- text input -----
   async function analyzeText(event: FormEvent) {
     event.preventDefault();
 
@@ -963,11 +971,15 @@ export default function Home() {
       ? null
       : await detectLanguage(message);
 
+    setText("");
+    const before = requestIdRef.current;
     const ok = await submitMessage(message, chooseLanguage(detected));
-    if (ok) setText("");
+
+    if (!ok && requestIdRef.current === before + 1) {
+      setText((current) => current || message);
+    }
   }
 
-  // ----- audio (microphone and file upload share this) -----
   async function transcribeAndSend(file: Blob, filename: string): Promise<boolean> {
     if (file.size > MAX_AUDIO_BYTES) {
       setError("The audio is too large (maximum 10 MB).");
@@ -1010,7 +1022,7 @@ export default function Home() {
     }
 
     const ok = await submitMessage(transcript, chooseLanguage(detected));
-    setText(ok ? "" : transcript); // keep the transcript so it can be edited and resent
+    setText(ok ? "" : transcript);
     return ok;
   }
 
@@ -1044,13 +1056,11 @@ export default function Home() {
       upload = await convertToWav(blob);
       filename = "microphone.wav";
 
-      // 16 kHz mono 16-bit is about 32 KB per second; under ~0.3 s is just a click.
       if (upload.size < 10_000) {
         setError("The recording was too short. Please speak for at least a second.");
         return;
       }
     } catch (err) {
-      // Could not convert in this browser; send the original recording instead.
       console.warn("WAV conversion failed; sending the original recording.", err);
     }
 
@@ -1097,7 +1107,6 @@ export default function Home() {
       recorder.start();
       setIsListening(true);
 
-      // Stop automatically so a forgotten recording cannot exceed the upload limit.
       recordTimerRef.current = window.setTimeout(() => {
         if (recorder.state === "recording") recorder.stop();
       }, MAX_RECORDING_MS);
@@ -1126,11 +1135,10 @@ export default function Home() {
     const ok = await transcribeAndSend(audioFile, audioFile.name);
     if (ok) {
       setAudioFile(null);
-      setAudioInputKey((key) => key + 1); // clears the file picker
+      setAudioInputKey((key) => key + 1);
     }
   }
 
-  // ----- text to speech -----
   function toggleSpeech() {
     if (isSpeaking) {
       stopSpeaking();
@@ -1193,15 +1201,13 @@ export default function Home() {
     if (synth.getVoices().length > 0) {
       speak();
     } else {
-      // Voices load asynchronously in some browsers; don't wait forever.
       synth.addEventListener("voiceschanged", speak, { once: true });
       window.setTimeout(speak, 1000);
     }
   }
 
-  // ----- conversations -----
   function startNewChat() {
-    requestIdRef.current++; // ignore any answer still on its way
+    requestIdRef.current++;
     stopSpeaking();
     applySession(null);
 
@@ -1244,14 +1250,12 @@ export default function Home() {
         method: "DELETE",
       });
 
-      // 404 means it is already gone, which is what the user wanted.
       if (!response.ok && response.status !== 404) {
         throw new Error(await readError(response, "Unable to delete this conversation."));
       }
 
       setHistory((old) => old.filter((item) => item.session_id !== id));
 
-      // Only reset the screen if the open conversation was the one deleted.
       if (sessionIdRef.current === id) startNewChat();
     } catch (err) {
       setError(errMsg(err, "Unable to delete the conversation."));
@@ -1283,7 +1287,6 @@ export default function Home() {
     }
   }
 
-  // ----- market prices -----
   async function searchMarketPrices(event: FormEvent) {
     event.preventDefault();
 
@@ -1318,7 +1321,6 @@ export default function Home() {
     }
   }
 
-  // ----- weather -----
   async function searchWeather(event: FormEvent) {
     event.preventDefault();
 
@@ -1350,7 +1352,6 @@ export default function Home() {
     }
   }
 
-  // ----- scheme eligibility -----
   async function checkSchemes(event: FormEvent) {
     event.preventDefault();
     if (schemeLoading) return;
@@ -1391,7 +1392,6 @@ export default function Home() {
     }
   }
 
-  // ----- UI helpers -----
   function fillPrompt(prompt: string) {
     setMode("text");
     setActiveNav("Home");
@@ -1399,7 +1399,6 @@ export default function Home() {
     requestAnimationFrame(() => inputRef.current?.focus());
   }
 
-  // ---------- UI-only data ----------
   const navItems: { label: string; icon: IconName; onClick: () => void }[] = [
     { label: "Home", icon: "homeS", onClick: () => {} },
     { label: "Crops", icon: "cropS", onClick: () => fillPrompt("Best practices for crop care") },
@@ -1410,37 +1409,7 @@ export default function Home() {
     { label: "Farming Tips", icon: "bulbS", onClick: () => {} },
   ];
 
-  // Weather, Market Prices, Schemes and Farming Tips open their tools in place of the landing view.
   const toolView = ["Weather", "Market Prices", "Schemes", "Farming Tips"].includes(activeNav);
-
-  const featureCards: {
-    title: string; text: string; icon: IconName; prompt: string; image: string;
-    card: string; chip: string;
-  }[] = [
-    { title: "Crop Guidance", text: "Cultivation, varieties and best practices", icon: "cropS", prompt: "Best practices for crop care", image: "/images/cards/card-crops.jpg", card: "border-[#cfeedb] bg-[#e9f8ee]", chip: "bg-[#cdeedb] text-green-700" },
-    { title: "Pest & Disease", text: "Identify and manage pests and diseases", icon: "bugS", prompt: "How do I manage pests in my crop?", image: "/images/cards/card-pests.jpg", card: "border-[#f8d6d6] bg-[#fdeeee]", chip: "bg-[#fbd5d5] text-red-600" },
-    { title: "Weather", text: "Current conditions and forecasts", icon: "cloudS", prompt: "What is the weather forecast for farming?", image: "/images/cards/card-weather.jpg", card: "border-[#cfe0f8] bg-[#eaf2fd]", chip: "bg-[#cfe2fb] text-blue-600" },
-    { title: "Market Prices", text: "Check mandi prices by crop and location", icon: "chartS", prompt: "What are the current market prices?", image: "/images/cards/card-market.jpg", card: "border-[#f6e3b6] bg-[#fdf5e2]", chip: "bg-[#fbe9b8] text-amber-700" },
-    { title: "Government Schemes", text: "Subsidies, loans and support", icon: "landmarkS", prompt: "Which government schemes are available for farmers?", image: "/images/cards/card-schemes.jpg", card: "border-[#ddd3f5] bg-[#f1ecfb]", chip: "bg-[#ddd3f7] text-violet-700" },
-    { title: "Farming Tips", text: "Seasonal advice and expert guidance", icon: "bulbS", prompt: "Give me expert farming tips", image: "/images/cards/card-tips.jpg", card: "border-[#cfeedb] bg-[#e9f8ee]", chip: "bg-[#eef5c2] text-yellow-500" },
-  ];
-
-  const suggestionChips = [
-    "How to grow rice?",
-    "Fertilizer for wheat",
-    "Tomato pest solutions",
-    "Today's weather",
-    "Maize mandi price",
-    "Am I eligible for PM-KISAN?",
-  ];
-
-  const quickActions = [
-    { label: "Soil Health", icon: "🪴", prompt: "How do I improve soil health?" },
-    { label: "Fertilizer Guide", icon: "🧪", prompt: "Which fertilizer should I use?" },
-    { label: "Market Prices", icon: "📊", prompt: "What are the current market prices?" },
-    { label: "Expert Tips", icon: "💡", prompt: "Give me expert farming tips" },
-    { label: "Irrigation", icon: "💧", prompt: "When should I water my crop?" },
-  ];
 
   const filteredHistory = history.filter((item) =>
     (item.first_question || "Conversation")
@@ -1458,22 +1427,27 @@ export default function Home() {
 
   const entities = result?.entities ?? { crops: [], topics: [], locations: [] };
 
+  const chatActive = activeMessages.length > 0 || loading;
+  const lastAssistantIndex = activeMessages.map((item) => item.role).lastIndexOf("assistant");
+
   return (
-    <div className="min-h-screen bg-[#f6faf6] text-slate-800">
-      <div className="flex min-h-screen flex-col lg:flex-row">
+    <div className="h-dvh overflow-hidden bg-[#f6faf6] text-slate-800">
+      <div className="flex h-full flex-col lg:flex-row">
         {/* ============ Sidebar ============ */}
-        <aside className="relative w-full shrink-0 overflow-hidden border-b border-slate-100 bg-white/90 lg:sticky lg:top-0 lg:h-screen lg:w-[265px] lg:border-b-0 lg:border-r">
+        <aside className="relative w-full shrink-0 overflow-hidden border-b border-slate-100 bg-white/90 lg:h-full lg:w-[265px] lg:border-b-0 lg:border-r">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/leaf-bottom.png"
             alt=""
-            className="side-leaf pointer-events-none absolute bottom-0 left-0 hidden w-full lg:block"
+            className={`side-leaf pointer-events-none absolute bottom-0 left-0 hidden w-full transition-opacity ${
+              showHistory ? "lg:opacity-0" : "lg:block"
+            }`}
           />
 
           <div className="relative z-10 flex min-h-0 flex-col px-3 pb-3 pt-4 lg:h-full lg:overflow-y-auto lg:px-4 lg:pb-0 lg:pt-6">
             <div className="flex items-center gap-2.5 px-0.5">
               <span className="shrink-0 text-green-600">
-                <Icon name="sprout" className="h-12 w-12" />
+                <Logo className="h-12 w-12" />
               </span>
               <div>
                 <p className="text-[19px] font-semibold leading-[1.15] text-slate-900">
@@ -1483,9 +1457,19 @@ export default function Home() {
                 </p>
                 <p className="mt-1 whitespace-nowrap text-[12px] text-slate-500">AI guidance for Indian farmers</p>
               </div>
+
+              {chatActive && !toolView && (
+                <button
+                  type="button"
+                  onClick={startNewChat}
+                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm lg:hidden"
+                >
+                  <Icon name="plus" className="h-4 w-4" /> New chat
+                </button>
+              )}
             </div>
 
-            <nav aria-label="Sections" className="-mx-1 mt-3 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:mt-7 lg:flex-col lg:gap-[3px] lg:overflow-visible lg:px-0 lg:pb-0">
+            <nav aria-label="Sections" className={`-mx-1 mt-3 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:mt-7 lg:flex-col lg:gap-[3px] lg:overflow-visible lg:px-0 lg:pb-0 ${chatActive && !toolView ? "max-lg:hidden" : ""}`}>
               {navItems.map((item) => {
                 const active = activeNav === item.label;
                 return (
@@ -1513,7 +1497,7 @@ export default function Home() {
 
             <div className="mx-3 mt-5 hidden border-t border-slate-200 lg:block" />
 
-            <div className="mt-3 flex min-h-0 flex-col lg:flex-1">
+            <div className={`mt-3 flex min-h-0 flex-col lg:flex-1 ${showHistory ? "lg:min-h-[320px]" : ""} ${chatActive && !toolView ? "max-lg:hidden" : ""}`}>
               <div className="flex items-center">
                 <button
                   type="button"
@@ -1559,66 +1543,64 @@ export default function Home() {
                     )}
                   </div>
 
+                  {historyLoading && (
+                    <p className="text-sm text-slate-500">Loading previous chats...</p>
+                  )}
 
-          {historyLoading && (
-            <p className="text-sm text-slate-500">Loading previous chats...</p>
-          )}
+                  {historyError && (
+                    <p role="alert" className="text-sm text-red-500">
+                      {historyError}
+                    </p>
+                  )}
 
-          {historyError && (
-            <p role="alert" className="text-sm text-red-500">
-              {historyError}
-            </p>
-          )}
+                  {!historyLoading && !historyError && history.length === 0 && (
+                    <p className="text-sm text-slate-500">
+                      No previous conversations yet.
+                    </p>
+                  )}
 
-          {!historyLoading && !historyError && history.length === 0 && (
-            <p className="text-sm text-slate-500">
-              No previous conversations yet.
-            </p>
-          )}
+                  <div className="mt-2 max-h-64 min-h-0 space-y-1 overflow-y-auto lg:max-h-none lg:min-h-[180px] lg:flex-1">
+                    {filteredHistory.map((item) => (
+                      <div
+                        key={item.session_id}
+                        className={`mb-1 flex items-center gap-1 rounded-lg hover:bg-slate-100 ${
+                          sessionId === item.session_id ? "bg-green-50" : ""
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveNav("Home");
+                            void openPreviousChat(item.session_id);
+                          }}
+                          className="min-w-0 flex-1 px-3 py-3 text-left"
+                        >
+                          <span className="line-clamp-2 block text-sm font-medium">
+                            {item.first_question || "Conversation"}
+                          </span>
 
-          <div className="mt-2 max-h-64 min-h-0 space-y-1 overflow-y-auto lg:max-h-none lg:flex-1">
-            {filteredHistory.map((item) => (
-              <div
-                key={item.session_id}
-                className={`mb-1 flex items-center gap-1 rounded-lg hover:bg-slate-100 ${
-                  sessionId === item.session_id ? "bg-green-50" : ""
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveNav("Home");
-                    void openPreviousChat(item.session_id);
-                  }}
-                  className="min-w-0 flex-1 px-3 py-3 text-left"
-                >
-                  <span className="line-clamp-2 block text-sm font-medium">
-                    {item.first_question || "Conversation"}
-                  </span>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            {formatTime(item.last_message_at)}
+                          </span>
+                        </button>
 
-                  <span className="mt-1 block text-xs text-slate-500">
-                    {formatTime(item.last_message_at)}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  title="Delete conversation"
-                  aria-label={`Delete conversation: ${item.first_question || "Conversation"}`}
-                  onClick={() => deletePreviousChat(item.session_id)}
-                  className="mr-2 rounded-lg px-3 py-2 text-red-500 hover:bg-red-50"
-                >
-                  🗑️
-                </button>
-              </div>
-            ))}
-          </div>
-
+                        <button
+                          type="button"
+                          title="Delete conversation"
+                          aria-label={`Delete conversation: ${item.first_question || "Conversation"}`}
+                          onClick={() => deletePreviousChat(item.session_id)}
+                          className="mr-2 rounded-lg px-3 py-2 text-red-500 hover:bg-red-50"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="side-foot mt-4 hidden pb-4 lg:mt-auto lg:block lg:pb-40">
+            <div className={`side-foot mt-4 hidden pb-4 lg:mt-auto lg:block ${showHistory ? "lg:pb-4" : "lg:pb-40"}`}>
               <p className="nav-row flex items-center gap-4 px-5 py-3.5 text-[15.5px] text-slate-800">
                 <Icon name="settingsS" className="h-6 w-6 text-slate-600" /> Settings
               </p>
@@ -1630,30 +1612,48 @@ export default function Home() {
         </aside>
 
         {/* ============ Main ============ */}
-        <div className="relative min-w-0 flex-1 overflow-hidden">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/leaf-top.png"
             alt=""
-            className="pointer-events-none absolute left-0 top-0 hidden h-40 w-auto lg:block"
+            className={`pointer-events-none absolute left-0 top-0 hidden h-40 w-auto transition-opacity duration-500 lg:block ${
+              chatActive && !toolView ? "opacity-0" : "opacity-100"
+            }`}
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/landscape.jpg"
             alt=""
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[150px] w-full object-cover object-bottom sm:h-[230px]"
+            className={`pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[150px] w-full object-cover object-bottom transition-opacity duration-500 sm:h-[230px] ${
+              chatActive && !toolView ? "opacity-0" : "opacity-100"
+            }`}
             style={{
               maskImage: "linear-gradient(to bottom, transparent 0%, black 30%)",
               WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 30%)",
             }}
           />
-          <p className="pointer-events-none absolute inset-x-0 bottom-2 z-10 px-4 text-center text-[11px] font-medium text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
-            Prototype: model predictions must be validated before using them for real agricultural advice.
-          </p>
+          {toolView && (
+            <p className="pointer-events-none absolute inset-x-0 bottom-2 z-10 px-4 text-center text-[11px] font-medium text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+              Prototype: model predictions must be validated before using them for real agricultural advice.
+            </p>
+          )}
 
-          <div className="relative z-10 flex min-h-screen flex-col pb-44">
-            {/* Top bar */}
-            <header className="flex items-center justify-end gap-4 px-5 pb-2 pt-[18px] lg:pr-8">
+          {/* Top bar */}
+          <header className="relative z-10 hidden shrink-0 items-center justify-between gap-4 px-5 pb-2 pt-[18px] sm:flex lg:pr-8">
+            {chatActive && !toolView ? (
+              <button
+                type="button"
+                onClick={startNewChat}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-white"
+              >
+                <Icon name="plus" className="h-4 w-4" /> New chat
+              </button>
+            ) : (
+              <span />
+            )}
+
+            <div className="flex items-center gap-4">
               <label className="relative flex h-[46px] items-center gap-3 rounded-2xl border border-slate-200 bg-white pl-4 pr-3 shadow-sm">
                 <Icon name="globe" className="h-6 w-6 text-slate-700" />
                 <select
@@ -1676,10 +1676,13 @@ export default function Home() {
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-green-800 text-xl font-medium text-white">
                 S
               </span>
-            </header>
+            </div>
+          </header>
 
+          {/* Scrollable area */}
+          <div ref={conversationRef} className="relative z-10 min-h-0 flex-1 overflow-y-auto">
             {toolView ? (
-              <div className="mx-auto w-full max-w-4xl space-y-6 px-5 pt-4 lg:px-10">
+              <div className="mx-auto w-full max-w-4xl space-y-6 px-5 pb-12 pt-4 lg:px-10">
                 <button
                   type="button"
                   onClick={() => setActiveNav("Home")}
@@ -1689,666 +1692,610 @@ export default function Home() {
                 </button>
 
                 {activeNav === "Weather" && (
-                  <>
+                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm">
+                    <h2 className="font-semibold">Weather by City</h2>
 
-          {/* Weather: real data from the backend, fetched on request */}
-          <section className="rounded-3xl border border-slate-200 bg-white/95 shadow-sm p-5">
-            <h2 className="font-semibold">Weather by City</h2>
+                    <form onSubmit={searchWeather} className="mt-3 flex gap-2">
+                      <input
+                        value={weatherCity}
+                        onChange={(e) => setWeatherCity(e.target.value)}
+                        aria-label="City"
+                        placeholder="Enter a city"
+                        className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="submit"
+                        disabled={weatherLoading || weatherCity.trim().length < 2}
+                        className="rounded-lg bg-green-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                      >
+                        {weatherLoading ? "..." : "Get"}
+                      </button>
+                    </form>
 
-            <form onSubmit={searchWeather} className="mt-3 flex gap-2">
-              <input
-                value={weatherCity}
-                onChange={(e) => setWeatherCity(e.target.value)}
-                aria-label="City"
-                placeholder="Enter a city"
-                className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm"
-              />
-              <button
-                type="submit"
-                disabled={weatherLoading || weatherCity.trim().length < 2}
-                className="rounded-lg bg-green-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-              >
-                {weatherLoading ? "..." : "Get"}
-              </button>
-            </form>
+                    {weatherError && (
+                      <p role="alert" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                        {weatherError}
+                      </p>
+                    )}
 
-            {weatherError && (
-              <p role="alert" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                {weatherError}
-              </p>
-            )}
-
-            {weatherEntries.length > 0 ? (
-              <div className="mt-3">
-                <EntryList entries={weatherEntries} />
-              </div>
-            ) : (
-              !weatherError && (
-                <p className="mt-3 text-sm text-gray-500">
-                  Enter a city to see its current weather.
-                </p>
-              )
-            )}
-          </section>
-
-                  </>
+                    {weatherEntries.length > 0 ? (
+                      <div className="mt-3">
+                        <EntryList entries={weatherEntries} />
+                      </div>
+                    ) : (
+                      !weatherError && (
+                        <p className="mt-3 text-sm text-gray-500">
+                          Enter a city to see its current weather.
+                        </p>
+                      )
+                    )}
+                  </section>
                 )}
 
                 {activeNav === "Market Prices" && (
-                  <>
+                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm">
+                    <h2 className="text-lg font-semibold">📊 Live Mandi Market Prices</h2>
 
-          {/* Live mandi market prices */}
-          <section className="rounded-3xl border border-slate-200 bg-white/95 shadow-sm p-5">
-            <h2 className="text-lg font-semibold">📊 Live Mandi Market Prices</h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Search wholesale market prices by crop and location.
+                    </p>
 
-            <p className="mt-1 text-sm text-gray-500">
-              Search wholesale market prices by crop and location.
-            </p>
+                    <datalist id="commodity-options">
+                      {COMMODITY_OPTIONS.map((name) => (
+                        <option key={name} value={name} />
+                      ))}
+                    </datalist>
 
-            <datalist id="commodity-options">
-              {COMMODITY_OPTIONS.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
+                    <form
+                      onSubmit={searchMarketPrices}
+                      className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                    >
+                      <label className="text-sm">
+                        Crop / Commodity
+                        <input
+                          value={commodity}
+                          onChange={(e) => setCommodity(e.target.value)}
+                          list="commodity-options"
+                          required
+                          placeholder="Rice"
+                          className="mt-1 w-full rounded-lg border px-3 py-2"
+                        />
+                      </label>
 
-            <form
-              onSubmit={searchMarketPrices}
-              className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-            >
-              <label className="text-sm">
-                Crop / Commodity
-                <input
-                  value={commodity}
-                  onChange={(e) => setCommodity(e.target.value)}
-                  list="commodity-options"
-                  required
-                  placeholder="Rice"
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                />
-              </label>
+                      <label className="text-sm">
+                        State (optional)
+                        <select
+                          value={marketState}
+                          onChange={(e) => setMarketState(e.target.value)}
+                          className="mt-1 w-full rounded-lg border bg-white px-3 py-2"
+                        >
+                          <option value="">All states</option>
+                          {STATE_OPTIONS.map((name) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
 
-              <label className="text-sm">
-                State (optional)
-                <select
-                  value={marketState}
-                  onChange={(e) => setMarketState(e.target.value)}
-                  className="mt-1 w-full rounded-lg border bg-white px-3 py-2"
-                >
-                  <option value="">All states</option>
-                  {STATE_OPTIONS.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                      <label className="text-sm">
+                        District (optional)
+                        <input
+                          value={district}
+                          onChange={(e) => setDistrict(e.target.value)}
+                          placeholder="Kanpur"
+                          className="mt-1 w-full rounded-lg border px-3 py-2"
+                        />
+                      </label>
 
-              <label className="text-sm">
-                District (optional)
-                <input
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  placeholder="Kanpur"
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                />
-              </label>
+                      <button
+                        type="submit"
+                        disabled={marketLoading}
+                        className="self-end rounded-lg bg-green-700 px-4 py-2 font-medium text-white disabled:opacity-50"
+                      >
+                        {marketLoading ? "Searching..." : "Search Prices"}
+                      </button>
+                    </form>
 
-              <button
-                type="submit"
-                disabled={marketLoading}
-                className="self-end rounded-lg bg-green-700 px-4 py-2 font-medium text-white disabled:opacity-50"
-              >
-                {marketLoading ? "Searching..." : "Search Prices"}
-              </button>
-            </form>
+                    {marketError && (
+                      <p
+                        role="alert"
+                        className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800"
+                      >
+                        {marketError}
+                      </p>
+                    )}
 
-            {marketError && (
-              <p
-                role="alert"
-                className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800"
-              >
-                {marketError}
-              </p>
-            )}
+                    {marketPrices && (
+                      <div className="mt-5">
+                        <p className="mb-3 text-sm text-gray-600">
+                          Source: {marketPrices.source} · {marketPrices.count} records
+                          {marketPrices.latest_arrival_date
+                            ? ` · latest data: ${marketPrices.latest_arrival_date}`
+                            : ""}
+                        </p>
 
-            {marketPrices && (
-              <div className="mt-5">
-                <p className="mb-3 text-sm text-gray-600">
-                  Source: {marketPrices.source} · {marketPrices.count} records
-                  {marketPrices.latest_arrival_date
-                    ? ` · latest data: ${marketPrices.latest_arrival_date}`
-                    : ""}
-                </p>
+                        {marketPrices.data_stale && marketPrices.count > 0 && (
+                          <p className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                            These prices are a few days old and may not reflect today&apos;s market.
+                          </p>
+                        )}
 
-                {marketPrices.data_stale && marketPrices.count > 0 && (
-                  <p className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                    These prices are a few days old and may not reflect today&apos;s market.
-                  </p>
-                )}
+                        {marketPrices.records.length === 0 ? (
+                          <p className="text-sm text-gray-500">
+                            No matching records found. Try another crop or location.
+                          </p>
+                        ) : (
+                          <MarketTable records={marketPrices.records} />
+                        )}
 
-                {marketPrices.records.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    No matching records found. Try another crop or location.
-                  </p>
-                ) : (
-                  <MarketTable records={marketPrices.records} />
-                )}
-
-                {marketPrices.note && (
-                  <p className="mt-3 text-xs text-gray-500">{marketPrices.note}</p>
-                )}
-              </div>
-            )}
-          </section>
-
-                  </>
+                        {marketPrices.note && (
+                          <p className="mt-3 text-xs text-gray-500">{marketPrices.note}</p>
+                        )}
+                      </div>
+                    )}
+                  </section>
                 )}
 
                 {activeNav === "Schemes" && (
-                  <>
+                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm">
+                    <h2 className="text-lg font-semibold">🏛️ Scheme Eligibility Checker</h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Answer a few questions to see whether PM-KISAN, crop insurance (PMFBY) and the Kisan Credit Card may apply to you.
+                    </p>
 
-          {/* Government scheme eligibility checker */}
-          <section className="rounded-3xl border border-slate-200 bg-white/95 shadow-sm p-5">
-            <h2 className="text-lg font-semibold">🏛️ Scheme Eligibility Checker</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Answer a few questions to see whether PM-KISAN, crop insurance (PMFBY) and the Kisan Credit Card may apply to you. Leave a question as &quot;Not sure&quot; if you don&apos;t know.
-            </p>
+                    <form onSubmit={checkSchemes} className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <label className="text-sm">
+                        State (optional)
+                        <select
+                          value={schemeForm.state}
+                          onChange={(e) => setSchemeForm((old) => ({ ...old, state: e.target.value }))}
+                          className="mt-1 w-full rounded-lg border bg-white px-3 py-2"
+                        >
+                          <option value="">Select your state</option>
+                          {STATE_OPTIONS.map((name) => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+                      </label>
 
-            <form onSubmit={checkSchemes} className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="text-sm">
-                State (optional)
-                <select
-                  value={schemeForm.state}
-                  onChange={(e) => setSchemeForm((old) => ({ ...old, state: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border bg-white px-3 py-2"
-                >
-                  <option value="">Select your state</option>
-                  {STATE_OPTIONS.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-              </label>
+                      <label className="text-sm">
+                        Land you own or cultivate, in hectares (optional)
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={schemeForm.land_hectares}
+                          onChange={(e) => setSchemeForm((old) => ({ ...old, land_hectares: e.target.value }))}
+                          placeholder="1.5"
+                          className="mt-1 w-full rounded-lg border px-3 py-2"
+                        />
+                      </label>
 
-              <label className="text-sm">
-                Land you own or cultivate, in hectares (optional)
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={schemeForm.land_hectares}
-                  onChange={(e) => setSchemeForm((old) => ({ ...old, land_hectares: e.target.value }))}
-                  placeholder="1.5"
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                />
-              </label>
+                      {SCHEME_QUESTIONS.map((question) => (
+                        <label key={question.key} className="text-sm">
+                          {question.label}
+                          <select
+                            value={schemeForm[question.key]}
+                            onChange={(e) =>
+                              setSchemeForm((old) => ({ ...old, [question.key]: e.target.value as TriState }))
+                            }
+                            className="mt-1 w-full rounded-lg border bg-white px-3 py-2"
+                          >
+                            <option value="">Not sure</option>
+                            <option value="yes">Yes</option>
+                            <option value="no">No</option>
+                          </select>
+                        </label>
+                      ))}
 
-              {SCHEME_QUESTIONS.map((question) => (
-                <label key={question.key} className="text-sm">
-                  {question.label}
-                  <select
-                    value={schemeForm[question.key]}
-                    onChange={(e) =>
-                      setSchemeForm((old) => ({ ...old, [question.key]: e.target.value as TriState }))
-                    }
-                    className="mt-1 w-full rounded-lg border bg-white px-3 py-2"
-                  >
-                    <option value="">Not sure</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
-                </label>
-              ))}
+                      <div className="flex gap-2 sm:col-span-2">
+                        <button
+                          type="submit"
+                          disabled={schemeLoading}
+                          className="rounded-lg bg-green-700 px-4 py-2 font-medium text-white disabled:opacity-50"
+                        >
+                          {schemeLoading ? "Checking..." : "Check eligibility"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSchemeForm(EMPTY_SCHEME_FORM);
+                            setSchemeResults(null);
+                            setSchemeError("");
+                          }}
+                          className="rounded-lg border px-4 py-2"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </form>
 
-              <div className="flex gap-2 sm:col-span-2">
-                <button
-                  type="submit"
-                  disabled={schemeLoading}
-                  className="rounded-lg bg-green-700 px-4 py-2 font-medium text-white disabled:opacity-50"
-                >
-                  {schemeLoading ? "Checking..." : "Check eligibility"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSchemeForm(EMPTY_SCHEME_FORM);
-                    setSchemeResults(null);
-                    setSchemeError("");
-                  }}
-                  className="rounded-lg border px-4 py-2"
-                >
-                  Reset
-                </button>
-              </div>
-            </form>
+                    {schemeError && (
+                      <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                        {schemeError}
+                      </p>
+                    )}
 
-            {schemeError && (
-              <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                {schemeError}
-              </p>
-            )}
-
-            {schemeResults && (
-              <div className="mt-5 space-y-3">
-                {schemeResults.results.map((scheme) => (
-                  <SchemeCard key={scheme.id} scheme={scheme} />
-                ))}
-                <p className="text-xs text-gray-500">{schemeResults.disclaimer}</p>
-                <p className="text-xs text-gray-500">{schemeResults.state_note}</p>
-              </div>
-            )}
-          </section>
-
-                  </>
+                    {schemeResults && (
+                      <div className="mt-5 space-y-3">
+                        {schemeResults.results.map((scheme) => (
+                          <SchemeCard key={scheme.id} scheme={scheme} />
+                        ))}
+                        <p className="text-xs text-gray-500">{schemeResults.disclaimer}</p>
+                        <p className="text-xs text-gray-500">{schemeResults.state_note}</p>
+                      </div>
+                    )}
+                  </section>
                 )}
 
                 {activeNav === "Farming Tips" && (
-                  <>
-
-          {/* Seasonal advisory (static) */}
-          <section className="rounded-3xl border border-slate-200 bg-white/95 shadow-sm p-5">
-            <h2 className="font-semibold">Seasonal Advisory</h2>
-            <div className="mt-3 flex gap-3">
-              <div className="flex-1">
-                <p className="text-sm font-semibold">🌿 Rabi Season</p>
-                <p className="mt-1 text-sm text-gray-500">
-                  Good time to sow wheat, chickpea and mustard in your region.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => fillPrompt("Which crops should I sow in the Rabi season?")}
-                  className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm font-medium text-green-800"
-                >
-                  View Details →
-                </button>
+                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm">
+                    <h2 className="font-semibold">Seasonal Advisory</h2>
+                    <div className="mt-3 flex gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold">🌿 Rabi Season</p>
+                        <p className="mt-1 text-sm text-gray-500">
+                          Good time to sow wheat, chickpea and mustard in your region.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => fillPrompt("Which crops should I sow in the Rabi season?")}
+                          className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm font-medium text-green-800"
+                        >
+                          View Details →
+                        </button>
+                      </div>
+                      <span className="flex h-24 w-24 items-center justify-center rounded-xl bg-green-100 text-5xl">
+                        🌱
+                      </span>
+                    </div>
+                  </section>
+                )}
               </div>
-              <span className="flex h-24 w-24 items-center justify-center rounded-xl bg-green-100 text-5xl">
-                🌱
-              </span>
-            </div>
-          </section>
-          {/* Quick actions: fill the question box only */}
-          <section className="rounded-3xl border border-slate-200 bg-white/95 shadow-sm p-5">
-            <h2 className="font-semibold">Quick Actions</h2>
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              {quickActions.map((a) => (
-                <button
-                  key={a.label}
-                  type="button"
-                  onClick={() => fillPrompt(a.prompt)}
-                  className="flex flex-col items-center gap-1 rounded-xl border p-2 text-center text-xs hover:bg-green-50"
-                >
-                  <span className="text-2xl">{a.icon}</span>
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </section>
+            ) : chatActive ? (
+              <div
+                role="log"
+                aria-live="polite"
+                className="mx-auto w-full max-w-4xl space-y-5 px-4 pb-8 pt-4 sm:px-6"
+              >
+                {activeMessages.map((item, index) => {
+                  const isUser = item.role === "user";
+                  const isLatestAnswer = !isUser && index === lastAssistantIndex;
 
-                  </>
+                  return (
+                    <div
+                      key={item.id ?? `${item.created_at}-${index}`}
+                      id={isLatestAnswer ? "latest-answer" : undefined}
+                      className={`flex scroll-mt-4 gap-3 ${isUser ? "justify-end" : ""}`}
+                    >
+                      {!isUser && (
+                        <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-green-100">
+                          <Logo className="h-6 w-6" />
+                        </span>
+                      )}
+
+                      <div
+                        className={`min-w-0 max-w-[88%] text-[17px] leading-relaxed sm:max-w-[80%] ${
+                          isUser
+                            ? "rounded-3xl rounded-br-lg bg-green-700 px-5 py-3 text-white"
+                            : "rounded-3xl rounded-tl-lg border border-slate-200 bg-white px-5 py-4 text-slate-800 shadow-sm"
+                        }`}
+                      >
+                        {isUser ? (
+                          <p className="whitespace-pre-wrap break-words">{item.message}</p>
+                        ) : (
+                          <AnswerBody intent={item.intent} answer={item.message} />
+                        )}
+
+                        {item.created_at && (
+                          <p className={`mt-1.5 text-right text-xs ${isUser ? "text-green-100" : "text-slate-400"}`}>
+                            {formatTime(item.created_at)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {loading && (
+                  <div className="flex gap-3" role="status">
+                    <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-green-100">
+                      <Logo className="h-6 w-6" />
+                    </span>
+                    <div className="flex items-center gap-1.5 rounded-3xl rounded-tl-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                      <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-green-600 [animation-delay:-0.3s]" />
+                      <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-green-600 [animation-delay:-0.15s]" />
+                      <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-green-600" />
+                      <span className="ml-2 text-sm text-slate-500">Thinking...</span>
+                    </div>
+                  </div>
+                )}
+
+                {!loading && result && (
+                  <div className="pl-12">
+                    <div className="space-y-4">
+                      <div className="rounded-lg bg-green-50 p-4">
+                        <p className="text-sm font-medium text-green-800">
+                          About this answer
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={toggleSpeech}
+                          className="mt-2 rounded-lg bg-green-700 px-4 py-2 text-white"
+                        >
+                          {isSpeaking ? "⏹️ Stop" : "🔊 Listen to Answer"}
+                        </button>
+
+                        {resultSources.length > 0 && (
+                          <div className="mt-3 space-y-1 border-t border-green-200 pt-3">
+                            <p className="text-sm font-medium text-green-800">
+                              {resultSources.length > 1 ? "Sources" : "Source"}
+                            </p>
+                            {resultSources.map((source) => {
+                              const url = safeUrl(source.source_url);
+                              return (
+                                <p
+                                  key={`${source.source_name}-${source.source_url ?? ""}`}
+                                  className="text-sm text-gray-700"
+                                >
+                                  {source.source_name}
+                                  {url && (
+                                    <>
+                                      {" · "}
+                                      <a
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-700 underline"
+                                      >
+                                        View source
+                                      </a>
+                                    </>
+                                  )}
+                                </p>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {result.needs_review && (
+                        <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                          This answer has low confidence and has been sent to an extension worker for
+                          review. Please verify it with the Kisan Call Centre (1800-180-1551) or your
+                          local agriculture office before acting on it.
+                        </p>
+                      )}
+
+                      <details className="text-sm">
+                        <summary className="cursor-pointer font-medium text-gray-700">
+                          Technical details
+                        </summary>
+
+                        <div className="mt-3 space-y-4">
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            <div className="rounded-lg bg-gray-50 p-3">
+                              <p className="text-sm text-gray-500">Language</p>
+                              <p>{result.language}</p>
+                            </div>
+
+                            <div className="rounded-lg bg-gray-50 p-3">
+                              <p className="text-sm text-gray-500">Intent</p>
+                              <p>{result.intent}</p>
+                            </div>
+
+                            <div className="rounded-lg bg-gray-50 p-3">
+                              <p className="text-sm text-gray-500">Confidence</p>
+                              <p>{(result.confidence * 100).toFixed(2)}%</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="font-semibold">Extracted entities</p>
+                            <p>Crops: {entities.crops.join(", ") || "None"}</p>
+                            <p>Topics: {entities.topics.join(", ") || "None"}</p>
+                            <p>Locations: {entities.locations.join(", ") || "None"}</p>
+                          </div>
+
+                          <p className="break-all text-gray-500">
+                            Session ID: {result.session_id}
+                          </p>
+
+                          <p className="text-gray-500">
+                            Rules decided the intent: {result.fallback_used ? "Yes" : "No"}
+                          </p>
+
+                          {typeof result.quality_score === "number" && (
+                            <p className="text-gray-500">
+                              Answer quality score: {(result.quality_score * 100).toFixed(0)}%
+                              {result.needs_review ? " (flagged for review)" : ""}
+                            </p>
+                          )}
+
+                          <div>
+                            <p className="font-semibold">Complete JSON response</p>
+                            <pre className="mt-2 overflow-x-auto rounded-lg bg-gray-950 p-4 text-sm text-green-300">
+                              {JSON.stringify(result, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
                 )}
               </div>
             ) : (
-              <>
-                {/* Hero + ask box */}
-                <div className="px-5 pt-8 lg:pl-20 lg:pr-24 xl:pr-[170px]">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-white bg-white/80 px-4 py-2 text-[15px] font-semibold text-green-700 shadow-sm">
-                    <Icon name="sprout" className="h-6 w-6" /> Your Farming Companion
-                  </span>
+              /* Simplified Home Welcome View */
+              <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col justify-center px-5 py-12 text-center lg:px-8">
+                <span className="mx-auto inline-flex items-center gap-2 rounded-full border border-white bg-white/80 px-4 py-2 text-[15px] font-semibold text-green-700 shadow-sm">
+                  <Logo className="h-6 w-6" /> Your Farming Companion
+                </span>
 
-                  <h1 className="mt-3.5 text-5xl font-extrabold leading-none tracking-tight text-slate-900 sm:text-[60px]">
-                    Hello, <span className="text-green-700">Farmer!</span>
-                  </h1>
-                  <p className="mt-1.5 text-[21px] text-slate-700">
-                    Get trusted guidance for better farming decisions.
+                <h1 className="mt-5 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-[60px]">
+                  Hello, <span className="text-green-700">Farmer!</span>
+                </h1>
+                <p className="mt-3 text-[22px] font-medium text-slate-700">
+                  Get trusted guidance for better farming decisions.
+                </p>
+                <p className="mt-2 text-[16px] text-slate-500">
+                  Ask questions, explore tools, and access real-time information — all in one place.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Question Box (Bottom) */}
+          {!toolView && (
+            <div
+              className={`relative z-10 shrink-0 px-4 pb-3 pt-2 sm:px-6 ${
+                chatActive
+                  ? "bg-gradient-to-t from-[#f6faf6] via-[#f6faf6]/95 to-transparent"
+                  : "sm:pb-5"
+              }`}
+            >
+              <div className="mx-auto w-full max-w-4xl">
+                {error && (
+                  <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                    {error}
                   </p>
-                  <p className="mt-1 text-[15.5px] text-slate-500">
-                    Ask questions, explore tools, and access real-time information — all in one place.
+                )}
+                {notice && (
+                  <p role="status" className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                    {notice}
                   </p>
+                )}
 
-                  <section className="mt-9 rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_10px_40px_-12px_rgba(22,101,52,0.18)] transition focus-within:border-green-400 focus-within:ring-4 focus-within:ring-green-100">
-                    {mode === "text" ? (
-                      <form onSubmit={analyzeText} className="px-6 pb-5 pt-5">
-                        <textarea
-                          id="question"
-                          ref={inputRef}
-                          value={text}
-                          onChange={(event) => setText(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                              event.preventDefault();
-                              event.currentTarget.form?.requestSubmit();
-                            }
-                          }}
-                          maxLength={2000}
-                          required
-                          rows={1}
-                          aria-label="Your farming question"
-                          placeholder="Ask anything about farming..."
-                          className="field-sizing-content max-h-40 min-h-[28px] w-full resize-none bg-transparent text-[16px] outline-none placeholder:text-slate-400"
-                        />
-
-                        <div className="mt-5 flex flex-wrap items-center gap-2 sm:gap-3">
-                          <button
-                            type="button"
-                            onClick={() => setMode("audio")}
-                            aria-label="Upload an audio file"
-                            title="Upload an audio file"
-                            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 sm:h-12 sm:w-12"
-                          >
-                            <Icon name="clip" className="h-5 w-5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={toggleRecording}
-                            disabled={loading}
-                            aria-label={isListening ? "Stop recording" : "Speak your question"}
-                            title={isListening ? "Stop recording" : "Speak your question"}
-                            className={`flex h-10 w-10 items-center justify-center rounded-full sm:h-12 sm:w-12 disabled:opacity-50 ${
-                              isListening
-                                ? "animate-pulse bg-red-100 text-red-600"
-                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                            }`}
-                          >
-                            <Icon name={isListening ? "stop" : "mic"} className="h-5 w-5" />
-                          </button>
-                          <label className="relative flex h-10 items-center gap-2 rounded-full bg-slate-100 pl-3 pr-3 text-[14px] font-medium text-slate-800 sm:h-12 sm:pl-4 sm:pr-4 sm:text-[16px]">
-                            <Icon name="globe" className="h-5 w-5" />
-                            <select
-                              value={language}
-                              onChange={(e) => setLanguage(e.target.value as LanguageChoice)}
-                              aria-label="Question language"
-                              className="appearance-none bg-transparent pr-6 outline-none"
-                            >
-                              <option value="auto">Auto-detect</option>
-                              <option value="en">English</option>
-                              <option value="hi">हिंदी</option>
-                              <option value="kn">ಕನ್ನಡ</option>
-                            </select>
-                            <Icon name="chevron" className="pointer-events-none absolute right-3 h-4 w-4" />
-                          </label>
-                          {isListening && (
-                            <span className="text-sm text-red-600">Listening... click to stop</span>
-                          )}
-                          <button
-                            type="submit"
-                            disabled={loading || !text.trim()}
-                            aria-label="Send question"
-                            className="ml-auto flex h-11 w-11 items-center justify-center rounded-full bg-green-700 sm:h-[52px] sm:w-[52px] text-white shadow-md disabled:cursor-not-allowed disabled:opacity-90"
-                          >
-                            {loading ? "..." : <Icon name="up" className="h-6 w-6" />}
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <form
-                        onSubmit={analyzeAudio}
-                        className="flex flex-wrap items-center gap-3 px-6 py-6"
-                      >
-                        <input
-                          key={audioInputKey}
-                          id="audio"
-                          type="file"
-                          accept="audio/*"
-                          required
-                          aria-label="Audio file"
-                          onChange={(event) =>
-                            onAudioFileChange(event.target.files?.[0] ?? null)
+                <section className="rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_10px_40px_-12px_rgba(22,101,52,0.25)] transition focus-within:border-green-400 focus-within:ring-4 focus-within:ring-green-100">
+                  {mode === "text" ? (
+                    <form onSubmit={analyzeText} className="px-5 pb-3 pt-4 sm:px-6 sm:pt-5">
+                      <textarea
+                        id="question"
+                        ref={inputRef}
+                        value={text}
+                        onChange={(event) => setText(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                            event.preventDefault();
+                            event.currentTarget.form?.requestSubmit();
                           }
-                          className="min-w-0 flex-1 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-green-50 file:px-3 file:py-2 file:font-medium file:text-green-800"
-                        />
+                        }}
+                        maxLength={2000}
+                        required
+                        rows={1}
+                        aria-label="Your farming question"
+                        placeholder={chatActive ? "Ask another question..." : "Ask anything about farming..."}
+                        className="field-sizing-content max-h-40 min-h-[28px] w-full resize-none bg-transparent text-[16px] outline-none placeholder:text-slate-400"
+                      />
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
                         <button
-                          type="submit"
-                          disabled={loading || !audioFile}
-                          className="rounded-xl bg-green-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                          type="button"
+                          onClick={() => setMode("audio")}
+                          aria-label="Upload an audio file"
+                          title="Upload an audio file"
+                          className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 sm:h-12 sm:w-12"
                         >
-                          {loading ? "Processing..." : "Transcribe and analyze"}
+                          <Icon name="clip" className="h-5 w-5" />
                         </button>
                         <button
                           type="button"
                           onClick={toggleRecording}
                           disabled={loading}
-                          className="rounded-xl border px-4 py-2 text-sm disabled:opacity-50"
+                          aria-label={isListening ? "Stop recording" : "Speak your question"}
+                          title={isListening ? "Stop recording" : "Speak your question"}
+                          className={`flex h-10 w-10 items-center justify-center rounded-full sm:h-12 sm:w-12 disabled:opacity-50 ${
+                            isListening
+                              ? "animate-pulse bg-red-100 text-red-600"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          }`}
                         >
-                          {isListening ? "Listening... click to stop" : "🎙️ Speak & Analyze"}
+                          <Icon name={isListening ? "stop" : "mic"} className="h-5 w-5" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setMode("text")}
-                          className="rounded-xl border px-4 py-2 text-sm"
-                        >
-                          ✏️ Text input
-                        </button>
-                      </form>
-                    )}
-                  </section>
-
-                  {error && (
-                    <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
-                      {error}
-                    </p>
-                  )}
-                  {notice && (
-                    <p role="status" className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
-                      {notice}
-                    </p>
-                  )}
-                </div>
-
-                {/* Conversation and latest answer (only once there is something to show) */}
-                {(activeMessages.length > 0 || loading || result) && (
-                  <div className="mt-6 px-5 lg:pl-20 lg:pr-24 xl:pr-[170px]">
-                    <section id="chat" className="rounded-3xl border border-slate-200 bg-white/95 shadow-sm">
-                      <div className="flex items-center gap-2 border-b px-5 py-4">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-600 text-white">
-                          <Icon name="chat" className="h-4 w-4" />
-                        </span>
-                        <h2 className="text-lg font-semibold">Chat with Farming Assistant</h2>
-                      </div>
-
-
-            <div
-              ref={conversationRef}
-              role="log"
-              aria-live="polite"
-              className="max-h-[480px] min-h-[200px] space-y-4 overflow-y-auto px-5 py-5"
-            >
-              {activeMessages.map((item, index) => {
-                const isUser = item.role === "user";
-                return (
-                  <div
-                    key={item.id ?? `${item.created_at}-${index}`}
-                    className={`flex gap-3 ${isUser ? "justify-end" : ""}`}
-                  >
-                    {!isUser && (
-                      <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-600 text-white">
-                        🌿
-                      </span>
-                    )}
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        isUser ? "bg-sky-100" : "border bg-green-50"
-                      }`}
-                    >
-                      {isUser ? (
-                        <p className="whitespace-pre-wrap">{item.message}</p>
-                      ) : (
-                        <AnswerBody intent={item.intent} answer={item.message} />
-                      )}
-                      <p className="mt-2 text-right text-xs text-gray-500">
-                        {item.language || ""}
-                        {item.intent ? ` · ${item.intent}` : ""}
-                        {item.created_at ? ` · ${formatTime(item.created_at)}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {loading && <p className="text-sm text-gray-500">Processing...</p>}
-            </div>
-            {result && (
-              <div className="mx-5 mb-4 space-y-4 rounded-xl border p-4">
-                <div className="rounded-lg bg-green-50 p-4">
-                  <p className="text-sm font-medium text-green-800">
-                    Agricultural guidance
-                  </p>
-                  <div className="mt-2 text-gray-900">
-                    <AnswerBody intent={result.intent} answer={result.answer} />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={toggleSpeech}
-                    className="mt-3 rounded-lg bg-green-700 px-4 py-2 text-white"
-                  >
-                    {isSpeaking ? "⏹️ Stop" : "🔊 Listen to Answer"}
-                  </button>
-
-                  {resultSources.length > 0 && (
-                    <div className="mt-3 space-y-1 border-t border-green-200 pt-3">
-                      <p className="text-sm font-medium text-green-800">
-                        {resultSources.length > 1 ? "Sources" : "Source"}
-                      </p>
-                      {resultSources.map((source) => {
-                        const url = safeUrl(source.source_url);
-                        return (
-                          <p
-                            key={`${source.source_name}-${source.source_url ?? ""}`}
-                            className="text-sm text-gray-700"
+                        <label className="relative flex h-10 items-center gap-2 rounded-full bg-slate-100 pl-3 pr-3 text-[14px] font-medium text-slate-800 sm:h-12 sm:pl-4 sm:pr-4 sm:text-[16px]">
+                          <Icon name="globe" className="h-5 w-5" />
+                          <select
+                            value={language}
+                            onChange={(e) => setLanguage(e.target.value as LanguageChoice)}
+                            aria-label="Question language"
+                            className="appearance-none bg-transparent pr-6 outline-none"
                           >
-                            {source.source_name}
-                            {url && (
-                              <>
-                                {" · "}
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-700 underline"
-                                >
-                                  View source
-                                </a>
-                              </>
-                            )}
-                          </p>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {result.needs_review && (
-                  <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                    This answer has low confidence and has been sent to an extension worker for
-                    review. Please verify it with the Kisan Call Centre (1800-180-1551) or your
-                    local agriculture office before acting on it.
-                  </p>
-                )}
-
-                <details className="text-sm">
-                  <summary className="cursor-pointer font-medium text-gray-700">
-                    Technical details
-                  </summary>
-
-                  <div className="mt-3 space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-lg bg-gray-50 p-3">
-                        <p className="text-sm text-gray-500">Language</p>
-                        <p>{result.language}</p>
+                            <option value="auto">Auto-detect</option>
+                            <option value="en">English</option>
+                            <option value="hi">हिंदी</option>
+                            <option value="kn">ಕನ್ನಡ</option>
+                          </select>
+                          <Icon name="chevron" className="pointer-events-none absolute right-3 h-4 w-4" />
+                        </label>
+                        {isListening && (
+                          <span className="text-sm text-red-600">Listening... click to stop</span>
+                        )}
+                        <button
+                          type="submit"
+                          disabled={loading || !text.trim()}
+                          aria-label="Send question"
+                          className="ml-auto flex h-11 w-11 items-center justify-center rounded-full bg-green-700 sm:h-[52px] sm:w-[52px] text-white shadow-md disabled:cursor-not-allowed disabled:opacity-90"
+                        >
+                          {loading ? "..." : <Icon name="up" className="h-6 w-6" />}
+                        </button>
                       </div>
-
-                      <div className="rounded-lg bg-gray-50 p-3">
-                        <p className="text-sm text-gray-500">Intent</p>
-                        <p>{result.intent}</p>
-                      </div>
-
-                      <div className="rounded-lg bg-gray-50 p-3">
-                        <p className="text-sm text-gray-500">Confidence</p>
-                        <p>{(result.confidence * 100).toFixed(2)}%</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="font-semibold">Extracted entities</p>
-                      <p>Crops: {entities.crops.join(", ") || "None"}</p>
-                      <p>Topics: {entities.topics.join(", ") || "None"}</p>
-                      <p>Locations: {entities.locations.join(", ") || "None"}</p>
-                    </div>
-
-                    <p className="break-all text-gray-500">
-                      Session ID: {result.session_id}
-                    </p>
-
-                    <p className="text-gray-500">
-                      Rules decided the intent: {result.fallback_used ? "Yes" : "No"}
-                    </p>
-
-                    {typeof result.quality_score === "number" && (
-                      <p className="text-gray-500">
-                        Answer quality score: {(result.quality_score * 100).toFixed(0)}%
-                        {result.needs_review ? " (flagged for review)" : ""}
-                      </p>
-                    )}
-
-                    <div>
-                      <p className="font-semibold">Complete JSON response</p>
-                      <pre className="mt-2 overflow-x-auto rounded-lg bg-gray-950 p-4 text-sm text-green-300">
-                        {JSON.stringify(result, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                </details>
-              </div>
-            )}
-
-                    </section>
-                  </div>
-                )}
-
-                {/* Suggestions: fill the question box only */}
-                <section aria-label="Suggested questions" className="mt-7 flex flex-wrap gap-x-4 gap-y-3 px-5 lg:px-8">
-                  {suggestionChips.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => fillPrompt(chip)}
-                      className="inline-flex h-[42px] items-center gap-3 rounded-full bg-[#e8f5ea] pl-[18px] pr-3 text-[13.5px] text-slate-800 transition-colors hover:bg-[#d9eede]"
+                    </form>
+                  ) : (
+                    <form
+                      onSubmit={analyzeAudio}
+                      className="flex flex-wrap items-center gap-3 px-6 py-6"
                     >
-                      <Icon name="trend" className="h-4 w-4" />
-                      {chip}
-                    </button>
-                  ))}
-                </section>
-
-                {/* Topic cards: fill the question box only */}
-                <section aria-label="Topics" className="topic-grid mt-7 grid gap-4 px-3">
-                  {featureCards.map((f) => (
-                    <button
-                      key={f.title}
-                      type="button"
-                      onClick={() => fillPrompt(f.prompt)}
-                      className={`flex flex-col rounded-2xl border p-2 text-left shadow-sm transition hover:shadow-md ${f.card}`}
-                    >
-                      <div
-                        className="h-[82px] w-full rounded-xl bg-cover bg-center"
-                        style={{ backgroundImage: `url(${f.image})` }}
+                      <input
+                        key={audioInputKey}
+                        id="audio"
+                        type="file"
+                        accept="audio/*"
+                        required
+                        aria-label="Audio file"
+                        onChange={(event) =>
+                          onAudioFileChange(event.target.files?.[0] ?? null)
+                        }
+                        className="min-w-0 flex-1 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-green-50 file:px-3 file:py-2 file:font-medium file:text-green-800"
                       />
-                      <span className={`ml-2 mt-3 flex h-9 w-9 items-center justify-center rounded-full ${f.chip}`}>
-                        <Icon name={f.icon} className="h-5 w-5" />
-                      </span>
-                      <p className="mt-2 px-1.5 text-[14px] font-semibold text-slate-900">{f.title}</p>
-                      <div className="flex flex-1 items-stretch justify-between gap-1.5 px-1.5 pb-1.5 pt-0.5">
-                        <p className="text-[12px] leading-snug text-slate-500">{f.text}</p>
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center self-end rounded-full bg-white text-slate-800 shadow-sm">
-                          <Icon name="right" className="h-4 w-4" />
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                      <button
+                        type="submit"
+                        disabled={loading || !audioFile}
+                        className="rounded-xl bg-green-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                      >
+                        {loading ? "Processing..." : "Transcribe and analyze"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={toggleRecording}
+                        disabled={loading}
+                        className="rounded-xl border px-4 py-2 text-sm disabled:opacity-50"
+                      >
+                        {isListening ? "Listening... click to stop" : "🎙️ Speak & Analyze"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMode("text")}
+                        className="rounded-xl border px-4 py-2 text-sm"
+                      >
+                        ✏️ Text input
+                      </button>
+                    </form>
+                  )}
                 </section>
-              </>
-            )}
-          </div>
+
+                <p
+                  className={`mt-2 text-center text-[11px] ${
+                    chatActive
+                      ? "text-slate-500"
+                      : "font-medium text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]"
+                  }`}
+                >
+                  Prototype: model predictions must be validated before using them for real agricultural advice.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

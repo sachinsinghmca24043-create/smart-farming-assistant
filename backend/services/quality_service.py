@@ -84,7 +84,7 @@ def score_response(
             reasons.append("stale_data")
         return QualityResult(
             score=round(score, 3),
-            needs_review=score < REVIEW_THRESHOLD,
+            needs_review=(score < REVIEW_THRESHOLD or data_stale),
             reasons=reasons,
         )
 
@@ -132,9 +132,25 @@ def score_response(
         reasons.append("machine_translated")
 
     score = round(_clamp(score), 3)
+    mandatory_review_reasons = {
+        "no_answer",
+        "live_service_unavailable",
+        "unverified_source",
+        "not_grounded",
+        "low_intent_confidence",
+        "machine_translated",
+        "weak_retrieval_match",
+        "retrieval_score_unavailable",
+        "stale_data",
+    }
+
+    needs_review = (
+        score < REVIEW_THRESHOLD
+        or any(reason in mandatory_review_reasons for reason in reasons)
+    )
     return QualityResult(
         score=score,
-        needs_review=score < REVIEW_THRESHOLD or "not_grounded" in reasons,
+        needs_review=needs_review,
         reasons=reasons,
     )
 

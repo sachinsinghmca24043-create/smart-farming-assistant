@@ -127,15 +127,19 @@ class AgricultureVectorStore:
                 ids.append(doc_id)
                 documents.append(content)  # raw text; prefix is added only when embedding
                 metadatas.append({
-                    "record_id": record_id,
-                    "language": language,
-                    "crop": str(record.get("crop", "")),
-                    "topic": str(record.get("topic", "")),
-                    "source_name": str(record.get("source_name", "")),
-                    "source_url": str(record.get("source_url", "")),
-                    "verified": str(record.get("verified", False)),
-                    "scope_note": str(record.get("scope_note", "")),
-                })
+    "record_id": record_id,
+    "language": language,
+    "crop": str(record.get("crop", "")),
+    "topic": str(record.get("topic", "")),
+    "source_name": str(record.get("source_name", "")),
+    "source_url": str(record.get("source_url", "")),
+    "verified": str(record.get("verified", False)),
+    "scope_note": str(record.get("scope_note", "")),
+    "keywords": " ".join(
+        str(keyword)
+        for keyword in (record.get("keywords") or [])
+    ),
+})
         return ids, documents, metadatas
 
     def index_knowledge_base(self) -> dict[str, Any]:

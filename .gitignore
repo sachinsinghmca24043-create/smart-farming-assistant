@@ -1,57 +1,33 @@
-# ==========================================
-# Python & Virtual Environments
-# ==========================================
+# Local editor settings
+.vscode/
+
+# Python environment and cache
+.venv/
 __pycache__/
 *.py[cod]
-*$py.class
 .pytest_cache/
-.venv/
-venv/
-ENV/
-env/
 
-# ==========================================
-# JavaScript / Node.js & Next.js
-# ==========================================
-node_modules/
-.next/
-out/
-build/
-dist/
-frontend/next-env.d.ts
-
-# ==========================================
-# Databases & Vector Stores
-# ==========================================
-*.db
-*.db-shm
-*.db-wal
-*.sqlite3
-backend/chroma_db/
-
-# ==========================================
-# Environment Variables & Secrets
-# ==========================================
+# Environment secrets
 .env
 .env.*
 !.env.example
 
-# ==========================================
-# IDEs, Editors & OS Files
-# ==========================================
-.DS_Store
-Thumbs.db
-.vscode/
-!.vscode/settings.json
-.idea/
+# Generated vector database
+backend/chroma_db/
 
-# ==========================================
-# Temporary & Backup Files
-# ==========================================
+# Local SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Backup files
+*.backup
 *.bak
-*.swp
-*.tmp
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+
+# Frontend
+node_modules/
+.next/
+out/
+
+# OS
+.DS_Store

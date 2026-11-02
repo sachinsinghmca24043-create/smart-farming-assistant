@@ -1,0 +1,150 @@
+{
+  "title": "Day 1 PDF extraction and chunking validation",
+  "validated_on": "2026-11-01",
+  "source": "ICAR Kharif Agro-Advisories for Farmers 2025",
+  "pipeline_version": "day1-v1",
+  "overall_status": "NOT YET COMPLETE — manual metadata/content review remains",
+  "summary": {
+    "pdf_pages": 310,
+    "extracted_pages": 292,
+    "skipped_front_back_matter": 9,
+    "skipped_blank_or_image_only": 9,
+    "body_page_range": [
+      17,
+      307
+    ],
+    "missing_pages_inside_declared_body_range": [],
+    "sections": 639,
+    "chunks": 1186,
+    "unique_chunk_ids": 1186,
+    "empty_chunk_texts": 0,
+    "duplicate_chunk_ids": 0,
+    "chunk_section_references_missing": 0,
+    "invalid_page_ranges": 0,
+    "chunk_text_char_count_mismatches": 0,
+    "category_conflicts": 86,
+    "missing_topics": 14,
+    "over_configured_max_chars": 13,
+    "under_configured_min_chars": 11,
+    "non_primary_taxonomy_categories": 21,
+    "chunks_needing_review": 139,
+    "all_chunks_marked_verified_false": true
+  },
+  "checks": {
+    "json_files_parse": "PASS",
+    "page_records_cover_1_to_310_once": "PASS",
+    "declared_body_pages_extracted": "PASS",
+    "chunk_ids_unique_and_present": "PASS",
+    "chunk_text_nonempty": "PASS",
+    "section_references_resolve": "PASS",
+    "page_ranges_valid": "PASS",
+    "chunk_size_configuration": "REVIEW REQUIRED",
+    "metadata_classification": "REVIEW REQUIRED",
+    "human_agronomic_verification": "NOT PERFORMED"
+  },
+  "category_conflict_breakdown": [
+    {
+      "heading_category": "spices",
+      "crop_dictionary_category": "vegetables",
+      "count": 3
+    },
+    {
+      "heading_category": "livestock",
+      "crop_dictionary_category": "fisheries",
+      "count": 25
+    },
+    {
+      "heading_category": "pulses",
+      "crop_dictionary_category": "oilseeds",
+      "count": 12
+    },
+    {
+      "heading_category": "pulses",
+      "crop_dictionary_category": "vegetables",
+      "count": 4
+    },
+    {
+      "heading_category": "commercial_crops",
+      "crop_dictionary_category": "livestock",
+      "count": 1
+    },
+    {
+      "heading_category": "fodder",
+      "crop_dictionary_category": "cereals",
+      "count": 4
+    },
+    {
+      "heading_category": "commercial_crops",
+      "crop_dictionary_category": "spices",
+      "count": 1
+    },
+    {
+      "heading_category": "vegetables",
+      "crop_dictionary_category": "spices",
+      "count": 13
+    },
+    {
+      "heading_category": "vegetables",
+      "crop_dictionary_category": "allied_enterprises",
+      "count": 1
+    },
+    {
+      "heading_category": "fruits",
+      "crop_dictionary_category": "livestock",
+      "count": 10
+    },
+    {
+      "heading_category": "vegetables",
+      "crop_dictionary_category": "fruits",
+      "count": 4
+    },
+    {
+      "heading_category": "spices",
+      "crop_dictionary_category": "fruits",
+      "count": 1
+    },
+    {
+      "heading_category": "vegetables",
+      "crop_dictionary_category": "pulses",
+      "count": 1
+    },
+    {
+      "heading_category": "commercial_crops",
+      "crop_dictionary_category": "fruits",
+      "count": 1
+    },
+    {
+      "heading_category": "vegetables",
+      "crop_dictionary_category": "cereals",
+      "count": 1
+    },
+    {
+      "heading_category": "fodder",
+      "crop_dictionary_category": "fisheries",
+      "count": 1
+    },
+    {
+      "heading_category": "spices",
+      "crop_dictionary_category": "commercial_crops",
+      "count": 2
+    },
+    {
+      "heading_category": "livestock",
+      "crop_dictionary_category": "allied_enterprises",
+      "count": 1
+    }
+  ],
+  "required_before_day1_signoff": [
+    "Review 86 heading-versus-crop category conflicts against the corresponding PDF pages; do not bulk-overwrite one category source with the other.",
+    "Review 21 chunks whose category is outside the main category set used in the chunk distribution (horticulture, flowers, agroforestry, other_crops) and decide whether these are valid taxonomy values or need mapping.",
+    "Review 14 chunks with no topic label; add a topic only when supported by the text.",
+    "Review 13 chunks above 1,250 characters and 11 chunks below 150 characters; adjust chunk boundaries only if meaning and source references are preserved.",
+    "Check the 139 flagged records in the accompanying CSV; flags can overlap, so this is a count of unique chunks requiring review.",
+    "Keep verified=false until a human has checked the agricultural advice against the source document."
+  ],
+  "files_created": [
+    "icar_kharif_2025_chunks_day1_validated.json",
+    "icar_kharif_2025_metadata_review.csv"
+  ],
+  "safety_note": "Original extraction and chunk JSON files were not modified. No category, crop, topic, or agricultural recommendation was automatically corrected. No ChromaDB collection was accessed or changed."
+}

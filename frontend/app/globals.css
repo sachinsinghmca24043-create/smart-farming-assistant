@@ -7,8 +7,17 @@
 }
 
 body {
-  background-color: #f1f5f9;
+  /* Same colour as the layout, so the overscroll area matches the page. */
+  background-color: #f6faf6;
   font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Only the interface chrome is unselectable. Answers, prices, phone numbers and
+   scheme results must stay selectable so farmers can copy them. */
+button,
+nav,
+aside,
+header {
   user-select: none;
 }
 
@@ -31,8 +40,7 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
-/* Let people select and copy chat answers (body is user-select: none) */
-[role="log"],
+/* Text inside answers stays selectable even though it sits next to buttons */
 [role="log"] *,
 pre {
   user-select: text;

@@ -35,6 +35,9 @@ _TOKEN_SPLIT = re.compile(r"[\s.,;:!?\"'()\[\]{}\-/।]+")
 _rag_service = None
 _rag_failed_at: float | None = None
 _rag_lock = Lock()
+_pdf_store = None
+_pdf_failed_at: float | None = None
+_pdf_lock = Lock()
 
 
 # --------------------------------------------------------------------------
@@ -128,6 +131,41 @@ def _get_rag_service():
         return _rag_service
 
 
+
+def _get_pdf_store():
+    """Initialize the ICAR PDF vector store lazily and safely."""
+    global _pdf_store, _pdf_failed_at
+
+    if _pdf_store is not None:
+        return _pdf_store
+
+    with _pdf_lock:
+        if _pdf_store is not None:
+            return _pdf_store
+
+        if (
+            _pdf_failed_at is not None
+            and time.monotonic() - _pdf_failed_at < RAG_RETRY_SECONDS
+        ):
+            raise RuntimeError("PDF vector store unavailable after recent failure.")
+
+        try:
+            from services.pdf_vector_store import PDFVectorStore
+
+            store = PDFVectorStore()
+
+            if store.collection.count() == 0:
+                raise RuntimeError("ICAR PDF collection is empty.")
+
+            _pdf_store = store
+            _pdf_failed_at = None
+            return _pdf_store
+
+        except Exception:
+            _pdf_failed_at = time.monotonic()
+            logger.exception("Could not initialize ICAR PDF vector store.")
+            raise
+
 # --------------------------------------------------------------------------
 # Keyword search
 # --------------------------------------------------------------------------
@@ -172,6 +210,9 @@ def _keyword_search(
     scored: list[tuple[int, int, dict[str, Any]]] = []
 
     for index, record in enumerate(load_knowledge()):
+        if str(record.get("verified", "")).strip().lower() != "true":
+            continue
+
         record_crop = _norm(record.get("crop"))
         record_topic = _norm(record.get("topic"))
 
@@ -212,6 +253,96 @@ def _keyword_search(
     return [record for _, _, record in scored[:limit]]
 
 
+def _pdf_crop_matches(metadata: dict[str, Any], crop: str | None) -> bool:
+    """Match crop against the singular and plural PDF metadata fields."""
+    if not crop:
+        return True
+
+    requested = _norm(crop)
+
+    available = {
+        _norm(metadata.get("crop")),
+        *[
+            _norm(value)
+            for value in str(metadata.get("crops") or "").split(",")
+        ],
+    }
+
+    aliases = {
+        "rice": {"rice", "paddy", "धान", "ಭತ್ತ"},
+        "cotton": {"cotton", "कपास", "ಹತ್ತಿ"},
+        "wheat": {"wheat", "गेहूं", "ಗೋಧಿ"},
+        "maize": {"maize", "corn", "मक्का", "ಮೆಕ್ಕೆಜೋಳ"},
+    }
+
+    accepted = aliases.get(requested, {requested})
+    return bool(accepted.intersection(available))
+
+
+def _pdf_topic_score(
+    metadata: dict[str, Any],
+    topic: str | None,
+) -> int:
+    """Score topic compatibility without discarding potentially useful evidence."""
+    if not topic:
+        return 0
+
+    actual = _norm(metadata.get("topic"))
+    requested = _norm(topic)
+
+    if actual == requested:
+        return 4
+
+    topic_aliases = {
+        "pest_management": {"pest_management", "disease_management"},
+        "disease_management": {"disease_management", "pest_management"},
+        "irrigation_water": {"irrigation_water", "climate_weather"},
+        "nutrient_fertilizer": {"nutrient_fertilizer", "soil_management"},
+        "crop_care": {
+            "sowing_planting",
+            "pest_management",
+            "disease_management",
+            "nutrient_fertilizer",
+            "irrigation_water",
+            "soil_management",
+            "weed_management",
+        },
+    }
+
+    if actual in topic_aliases.get(requested, set()):
+        return 2
+
+    return 0
+
+
+def _pdf_result_to_record(result: dict[str, Any]) -> dict[str, Any]:
+    """Convert an ICAR vector result into the record format used by chat."""
+    metadata = result.get("metadata") or {}
+
+    verified_value = str(metadata.get("verified", "false")).strip().lower()
+    verified = verified_value == "true"
+
+    return {
+        "id": str(metadata.get("chunk_id") or result.get("id") or ""),
+        "content": str(result.get("document") or ""),
+        "crop": metadata.get("crop") or "",
+        "crops": metadata.get("crops") or "",
+        "topic": metadata.get("topic") or "",
+        "topics": metadata.get("topics") or "",
+        "state": metadata.get("state") or "",
+        "source_name": metadata.get("source_name") or "ICAR Kharif Agro-Advisories 2025",
+        "source_url": metadata.get("source_url") or "",
+        "source_file": metadata.get("source_file") or "",
+        "scope_note": metadata.get("context") or "",
+        "language": metadata.get("language") or "en",
+        "page_start": metadata.get("page_start"),
+        "page_end": metadata.get("page_end"),
+        "verified": verified,
+        "review_status": metadata.get("review_status") or "pending",
+        "_source_type": "icar_pdf",
+        "_distance": result.get("distance"),
+    }
+
 # --------------------------------------------------------------------------
 # Public API
 # --------------------------------------------------------------------------
@@ -220,51 +351,175 @@ def search_knowledge(
     crop: str | None = None,
     topic: str | None = None,
     limit: int = 3,
+    state: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Vector retrieval first, topped up by keyword search if needed."""
+    """Search original agricultural RAG and ICAR PDF RAG together."""
+
     if not isinstance(query, str) or not query.strip() or limit < 1:
         return []
 
     query = query.strip()
     lookup = _records_by_id()
-    results: list[dict[str, Any]] = []
-    seen: set[int] = set()  # object identity, so records without ids dedupe too
-    distances: dict[int, float | None] = {}  # cosine distance per record (vector hits only)
 
+    candidates: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add_candidate(
+        record: dict[str, Any],
+        distance: float | None,
+        source_type: str,
+        topic_score: int = 0,
+    ) -> None:
+        record_id = str(record.get("id") or "")
+        identity = (source_type, record_id)
+
+        if identity in seen:
+            return
+
+        seen.add(identity)
+
+        item = dict(record)
+        item["_distance"] = distance
+        item["_source_type"] = source_type
+        item["_topic_score"] = topic_score
+
+        # Lower cosine distance is better.
+        numeric_distance = (
+            float(distance) if distance is not None else 1.0
+        )
+
+        # Topic match is a ranking signal, not proof of relevance.
+        item["_ranking_score"] = (
+            -numeric_distance + topic_score * 0.025 + _content_topic_score(record.get("content", ""), topic)
+        )
+
+        candidates.append(item)
+
+    # 1. Search the original agricultural collection.
     try:
         documents = _get_rag_service().retrieve(
             query=query,
             crop=crop,
             topic=topic,
-            limit=limit,
+            limit=max(limit, 5),
         )
 
         for document in documents:
-            record = lookup.get(str(document.metadata.get("record_id", "")))
-            if record is not None and id(record) not in seen:
-                results.append(record)
-                seen.add(id(record))
-                distances[id(record)] = document.metadata.get("distance")
+            record = lookup.get(
+                str(document.metadata.get("record_id", ""))
+            )
+
+            if record is not None:
+                add_candidate(
+                    record=record,
+                    distance=document.metadata.get("distance"),
+                    source_type="agriculture",
+                )
 
     except Exception:
-        # Keep the chat available if vector retrieval fails, but leave a trace.
-        logger.warning("Vector retrieval failed; using keyword search.",
-                       exc_info=True)
+        logger.warning(
+            "Original agricultural RAG retrieval failed.",
+            exc_info=True,
+        )
 
-    # Fill any remaining slots (or all of them, if retrieval failed).
-    if len(results) < limit:
-        for record in _keyword_search(query, crop, topic, limit):
-            if id(record) not in seen:
-                results.append(record)
-                seen.add(id(record))
+    # 2. Search the ICAR PDF collection.
+    try:
+        pdf_store = _get_pdf_store()
 
-    # Return copies so callers cannot modify the cached knowledge base. Each copy
-    # carries "_distance" (None for keyword-only hits) for quality scoring.
+        # Retrieve a wider candidate pool because crop/topic ranking
+        # happens after semantic retrieval.
+        # ICAR advisories are regional; search only when state is known.
+        if state:
+            pdf_results = pdf_store.search(
+                query=query,
+                top_k=20,
+                crop=crop,
+                state=state,
+            )
+        else:
+            pdf_results = []
+
+        for result in pdf_results:
+            metadata = result.get("metadata") or {}
+
+            # Do not use ICAR chunks until they have been reviewed.
+            if str(metadata.get("verified", "false")).strip().lower() != "true":
+                continue
+
+            if not _pdf_crop_matches(metadata, crop):
+                continue
+
+            record = _pdf_result_to_record(result)
+
+            topic_score = _pdf_topic_score(metadata, topic)
+
+            record["_topic_score"] = topic_score
+            add_candidate(
+                record=record,
+                distance=result.get("distance"),
+                source_type="icar_pdf",
+                topic_score=topic_score,
+            )
+
+    except Exception:
+        logger.warning(
+            "ICAR PDF retrieval failed; continuing with original knowledge.",
+            exc_info=True,
+        )
+
+    # 3. Keep the existing verified JSON keyword fallback.
+    if len(candidates) < limit:
+        try:
+            for record in _keyword_search(
+                query=query,
+                crop=crop,
+                topic=topic,
+                limit=limit,
+            ):
+                add_candidate(
+                    record=record,
+                    distance=None,
+                    source_type="keyword",
+                )
+        except Exception:
+            logger.warning(
+                "Agricultural keyword fallback failed.",
+                exc_info=True,
+            )
+
+    # 4. Merge and rank both collections.
+    candidates.sort(
+        key=lambda item: (
+            -item["_ranking_score"],
+            item["_distance"] is None,
+        )
+    )
     output = []
-    for record in results[:limit]:
-        item = dict(record)
-        item["_distance"] = distances.get(id(record))
+    seen_results = set()
+
+    for item in candidates:
+        content = str(item.get("content", "")).strip()
+
+        key = (
+            item.get("_source_type"),
+            item.get("source_file") or item.get("source_name"),
+            item.get("page_start"),
+            item.get("page_end"),
+            content[:200],
+        )
+
+        if key in seen_results:
+            continue
+
+        seen_results.add(key)
+
+        item.pop("_ranking_score", None)
+        item.pop("_topic_score", None)
         output.append(item)
+
+        if len(output) >= limit:
+            break
+
     return output
 
 
@@ -274,3 +529,53 @@ def ensure_index() -> dict[str, Any] | None:
     Returns index statistics if it indexed, or None if it was already current.
     """
     return _get_rag_service().vector_store.ensure_indexed()
+
+
+def _content_topic_score(content: str, topic: str | None) -> float:
+    if not content or not topic:
+        return 0.0
+
+    text = content.lower()
+
+    keywords = {
+        "irrigation": [
+            "irrigation",
+            "irrigate",
+            "water level",
+            "water depth",
+            "ponded water",
+            "stagnant water",
+            "water shortage",
+            "alternate wetting",
+            "flooding",
+            "dry before irrigating",
+        ],
+        "fertilizer": [
+            "fertilizer",
+            "fertiliser",
+            "nutrient management",
+            "nitrogen",
+            "phosphorus",
+            "potassium",
+            "npk",
+            "fym",
+            "compost",
+            "urea",
+        ],
+        "pest_disease": [
+            "pest",
+            "insect",
+            "disease",
+            "fungus",
+            "fungal",
+            "bollworm",
+            "stem borer",
+            "aphid",
+            "whitefly",
+        ],
+    }
+
+    terms = keywords.get(topic, [])
+    matches = sum(1 for term in terms if term in text)
+
+    return min(matches, 5) * 0.05

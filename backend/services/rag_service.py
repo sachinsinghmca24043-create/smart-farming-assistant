@@ -120,6 +120,10 @@ class AgricultureRAGService:
             if not isinstance(metadata, dict):
                 metadata = {}
 
+            # Exclude unverified knowledge from farmer-facing responses.
+            if str(metadata.get("verified", "")).strip().lower() != "true":
+                continue
+
             content = (match.get("document") or "").removeprefix(PASSAGE_PREFIX)
             if not content.strip():
                 continue

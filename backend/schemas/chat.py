@@ -19,6 +19,16 @@ class ChatRequest(BaseModel):
 class ChatSource(BaseModel):
     source_name: str
     source_url: str | None = None
+
+    # PDF source traceability
+    page_start: int | None = None
+    page_end: int | None = None
+    source_file: str | None = None
+
+    # Source verification and review status
+    source_type: str | None = None
+    verified: bool | None = None
+    review_status: str | None = None
 class ChatResponse(BaseModel):
     answer: str
     language: Literal["hi", "kn", "en"]
