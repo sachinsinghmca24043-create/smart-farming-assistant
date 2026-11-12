@@ -1,14 +1,22 @@
 from typing import Literal
-
-from pydantic import BaseModel, Field, field_validator
+import unicodedata
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     message: str = Field(min_length=1, max_length=2000)
     language: Literal["hi", "kn", "en"] = "hi"
-    session_id: str | None = None
+    session_id: str | None = Field(default=None, min_length=8, max_length=128, pattern=r"^[A-Za-z0-9_.:-]+$")
 
     @field_validator("message")
     @classmethod
     def validate_message(cls, value: str) -> str:
+        value = "".join(
+            char for char in value
+            if unicodedata.category(char) != "Cc"
+            or char in "\n\t"
+        )
+
         value = value.strip()
 
         if not value:
@@ -33,6 +41,7 @@ class ChatResponse(BaseModel):
     answer: str
     language: Literal["hi", "kn", "en"]
     session_id: str
+    answer_message_id: int | None = None
     intent: str
     confidence: float
     entities: dict[str, list[str]]

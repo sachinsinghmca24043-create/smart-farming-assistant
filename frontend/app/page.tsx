@@ -7,11 +7,8 @@ import type { FormEvent, ReactNode } from "react";
 // Configuration
 // -------------------------------------------------------------------
 
-const API_BASE = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1"
-).replace(/\/$/, "");
-
 const SESSION_STORAGE_KEY = "smart-farming-session";
+const OFFLINE_CHAT_CACHE_KEY = "smart-farming-last-conversation";
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_.:-]{8,128}$/;
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
@@ -218,21 +215,35 @@ async function apiFetch(
   init: RequestInit = {},
   timeoutMs: number = DEFAULT_TIMEOUT_MS
 ): Promise<Response> {
+  // Detect offline status before making an API request.
+  if (typeof navigator !== "undefined" && !navigator.onLine){
+    throw new Error(
+      "You are currently offline. Please check your internet connection and try again."
+    );
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await fetch(`${API_BASE}${path}`, {
-      ...init,
-      signal: controller.signal,
-    });
+    return await fetch(`/api/farmer/backend${path}`, {
+  ...init,
+  credentials: "same-origin",
+  signal: controller.signal,
+});
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error("The request took too long. Please try again.");
     }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      throw new Error(
+        "You are currently offline. Please check your internet connection and try again."
+      );
+    }
+
     throw new Error(
       "Cannot reach the server. Please check your connection and that the backend is running."
     );
+   
   } finally {
     clearTimeout(timer);
   }
@@ -687,6 +698,7 @@ function Logo({ className = "h-12 w-12" }: { className?: string }) {
 
 export default function Home() {
   // ----- chat state -----
+  const [authChecking, setAuthChecking] = useState(true);
   const [mode, setMode] = useState<"text" | "audio">("text");
   const [text, setText] = useState("");
   const [language, setLanguage] = useState<LanguageChoice>("auto");
@@ -702,6 +714,11 @@ export default function Home() {
   const [activeMessages, setActiveMessages] = useState<HistoryMessage[]>([]);
   const [activeNav, setActiveNav] = useState("Home");
   const [showHistory, setShowHistory] = useState(false);
+  const [feedbackRatings, setFeedbackRatings] = useState<
+  Record<number, "up" | "down">
+  >({});
+  const [feedbackLoading, setFeedbackLoading] = useState<number | null>(null);
+  const [feedbackError, setFeedbackError] = useState("");
 
   // ----- history state -----
   const [history, setHistory] = useState<HistorySession[]>([]);
@@ -740,6 +757,43 @@ export default function Home() {
   const lastLanguageRef = useRef<LangCode>("en");
   const conversationRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+ 
+
+
+  useEffect(() => {
+  let active = true;
+
+  async function checkFarmerAuth() {
+    try {
+      const response = await fetch("/api/farmer/me", {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        window.location.replace("/farmer/login");
+        return;
+      }
+
+      if (active) {
+        setAuthChecking(false);
+      }
+    } catch {
+      if (active) {
+        window.location.replace("/farmer/login");
+      }
+    }
+  }
+
+  void checkFarmerAuth();
+
+  return () => {
+    active = false;
+  };
+}, []);
+
+
 
   useEffect(() => {
     languageRef.current = language;
@@ -785,7 +839,7 @@ export default function Home() {
     setHistoryError("");
 
     try {
-      const response = await apiFetch("/chat/history");
+      const response = await apiFetch("/chat/my-history");
 
       if (response.status === 403) {
         throw new Error("Listing previous chats is turned off on this server.");
@@ -841,6 +895,43 @@ export default function Home() {
 
     void loadHistory();
   }, [applySession, loadHistory, loadSession]);
+
+
+  // Restore the last conversation from local storage when offline.
+useEffect(() => {
+  if (navigator.onLine) return;
+
+  try {
+    const cached = localStorage.getItem(OFFLINE_CHAT_CACHE_KEY);
+
+    if (cached) {
+      const messages = JSON.parse(cached);
+
+      if (Array.isArray(messages) && messages.length > 0) {
+        setActiveMessages(messages);
+      }
+    }
+  } catch {
+    console.warn("Unable to restore the offline conversation.");
+  }
+}, []);
+
+// Keep the latest conversation available offline.
+useEffect(() => {
+  if (activeMessages.length === 0) return;
+
+  try {
+    localStorage.setItem(
+      OFFLINE_CHAT_CACHE_KEY,
+      JSON.stringify(activeMessages)
+    );
+  } catch {
+    console.warn("Unable to save the offline conversation.");
+  }
+}, [activeMessages]);
+
+
+
 
   useEffect(() => {
     return () => {
@@ -945,6 +1036,46 @@ export default function Home() {
       return null;
     }
   }
+
+
+  async function submitFeedback(
+  messageId: number,
+  rating: "up" | "down"
+) {
+  if (!sessionId || feedbackLoading !== null) return;
+
+  setFeedbackLoading(messageId);
+  setFeedbackError("");
+
+  try {
+    const response = await apiFetch("/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: sessionId,
+        message_id: messageId,
+        rating,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        await readError(response, "Unable to submit feedback.")
+      );
+    }
+
+    setFeedbackRatings((old) => ({
+      ...old,
+      [messageId]: rating,
+    }));
+  } catch (err) {
+    setFeedbackError(
+      errMsg(err, "Unable to submit feedback.")
+    );
+  } finally {
+    setFeedbackLoading(null);
+  }
+}
 
   function chooseLanguage(detected: unknown): LangCode {
     const selected = languageRef.current;
@@ -1206,18 +1337,44 @@ export default function Home() {
     }
   }
 
-  function startNewChat() {
-    requestIdRef.current++;
-    stopSpeaking();
-    applySession(null);
 
-    setActiveMessages([]);
-    setResult(null);
-    setText("");
-    setError("");
-    setNotice("");
-    setLoading(false);
+  async function handleLogout() {
+  const confirmed = window.confirm("Are you sure you want to logout?");
+  if (!confirmed) return;
+
+  try {
+    await fetch("/api/farmer/logout", {
+      method: "POST",
+      credentials: "same-origin",
+    });
+  } finally {
+    // Clear farmer-specific local conversation data.
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    localStorage.removeItem(OFFLINE_CHAT_CACHE_KEY);
+
+    window.location.replace("/farmer/login");
   }
+}
+
+  function startNewChat() {
+  requestIdRef.current++;
+  stopSpeaking();
+  applySession(null);
+
+  // Clear the previous offline conversation.
+  try {
+    localStorage.removeItem(OFFLINE_CHAT_CACHE_KEY);
+  } catch {
+    console.warn("Unable to clear the offline conversation.");
+  }
+
+  setActiveMessages([]);
+  setResult(null);
+  setText("");
+  setError("");
+  setNotice("");
+  setLoading(false);
+}
 
   async function openPreviousChat(id: string) {
     requestIdRef.current++;
@@ -1430,6 +1587,17 @@ export default function Home() {
   const chatActive = activeMessages.length > 0 || loading;
   const lastAssistantIndex = activeMessages.map((item) => item.role).lastIndexOf("assistant");
 
+  if (authChecking) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-green-50">
+      <p className="text-lg font-medium text-green-800">
+        Verifying your account...
+      </p>
+    </main>
+  );
+}
+
+
   return (
     <div className="h-dvh overflow-hidden bg-[#f6faf6] text-slate-800">
       <div className="flex h-full flex-col lg:flex-row">
@@ -1494,6 +1662,16 @@ export default function Home() {
                 );
               })}
             </nav>
+
+
+            <button
+  type="button"
+  onClick={handleLogout}
+  className="mt-3 flex w-full items-center gap-3 rounded-xl px-5 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+>
+  <span>↪</span>
+  Logout
+</button>
 
             <div className="mx-3 mt-5 hidden border-t border-slate-200 lg:block" />
 
@@ -1985,7 +2163,47 @@ export default function Home() {
                         {isUser ? (
                           <p className="whitespace-pre-wrap break-words">{item.message}</p>
                         ) : (
-                          <AnswerBody intent={item.intent} answer={item.message} />
+                          <>
+                            <AnswerBody intent={item.intent} answer={item.message} />
+
+                            {typeof item.id === "number" && (
+                              <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-2">
+                                <span className="text-xs text-slate-500">Was this helpful?</span>
+
+                                <button
+                                  type="button"
+                                  aria-label="Helpful answer"
+                                  disabled={feedbackLoading === item.id}
+                                  onClick={() => void submitFeedback(item.id!, "up")}
+                                  className={`rounded-lg px-2 py-1 text-sm ${
+                                    feedbackRatings[item.id] === "up"
+                                      ? "bg-green-100 text-green-700"
+                                      : "text-slate-500 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  👍
+                                </button>
+
+                                <button
+                                  type="button"
+                                  aria-label="Not helpful"
+                                  disabled={feedbackLoading === item.id}
+                                  onClick={() => void submitFeedback(item.id!, "down")}
+                                  className={`rounded-lg px-2 py-1 text-sm ${
+                                    feedbackRatings[item.id] === "down"
+                                      ? "bg-red-100 text-red-700"
+                                      : "text-slate-500 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  👎
+                                </button>
+
+                                {feedbackLoading === item.id && (
+                                  <span className="text-xs text-slate-400">Saving...</span>
+                                )}
+                              </div>
+                            )}
+                          </>
                         )}
 
                         {item.created_at && (
@@ -2164,6 +2382,11 @@ export default function Home() {
                 {notice && (
                   <p role="status" className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
                     {notice}
+                  </p>
+                )}
+                {feedbackError && (
+                  <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                    {feedbackError}
                   </p>
                 )}
 

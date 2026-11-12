@@ -18,8 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Smart Farming Assistant",
-  description: "AI guidance for Indian farmers",
+  title: "Smart Krishi - AI Farming Assistant",
+  description: "Multilingual AI Agricultural Guidance and Farmer Support",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

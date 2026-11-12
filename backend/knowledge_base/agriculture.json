@@ -24,31 +24,6 @@
     "translation_note": "Prototype translation of the English summary; not an official published translation."
   },
   {
-    "id": "rice_002",
-    "crop": "rice",
-    "topic": "soil_health",
-    "keywords": [
-      "rice",
-      "paddy",
-      "straw",
-      "organic matter",
-      "soil health",
-      "धान",
-      "ಮಣ್ಣು"
-    ],
-    "content": "An ICAR-CIWA crop-production FAQ says rice straw remaining after harvest can be ploughed into the field to add organic matter. Suitability depends on the local cropping system and field conditions.",
-    "language": "en",
-    "source_name": "ICAR-CIWA, Crop Production FAQ",
-    "source_url": "https://www.ciwa.icar.gov.in/gks/crop-production",
-    "verified": true,
-    "scope_note": "General practice; check local residue-management guidance.",
-    "translations": {
-      "hi": "ICAR-CIWA की फसल उत्पादन संबंधी FAQ के अनुसार, कटाई के बाद बचा धान का पुआल खेत में मिलाने से मिट्टी में जैविक पदार्थ बढ़ाने में मदद मिल सकती है। इसे अपनाने से पहले स्थानीय फसल प्रणाली और खेत की स्थिति के अनुसार सलाह लें।",
-      "kn": "ICAR-CIWA ಬೆಳೆ ಉತ್ಪಾದನಾ FAQ ಪ್ರಕಾರ, ಕೊಯ್ಲಿನ ನಂತರ ಉಳಿದ ಭತ್ತದ ಒಣಹುಲ್ಲನ್ನು ಹೊಲದಲ್ಲಿ ಮಣ್ಣಿನೊಂದಿಗೆ ಬೆರೆಸುವುದರಿಂದ ಮಣ್ಣಿನಲ್ಲಿನ ಸಾವಯವ ಪದಾರ್ಥ ಹೆಚ್ಚಲು ಸಹಾಯವಾಗಬಹುದು. ಇದನ್ನು ಅನುಸರಿಸುವ ಮೊದಲು ಸ್ಥಳೀಯ ಬೆಳೆ ಪದ್ಧತಿ ಮತ್ತು ಹೊಲದ ಪರಿಸ್ಥಿತಿಗೆ ಅನುಗುಣವಾಗಿ ಸಲಹೆ ಪಡೆಯಿರಿ."
-    },
-    "translation_note": "Prototype translation of the English summary; not an official published translation."
-  },
-  {
     "id": "rice_003",
     "crop": "rice",
     "topic": "crop_rotation",
@@ -405,5 +380,26 @@
     },
     "translation_note": "Machine translation (Gemini) of the English summary; not an official published translation and pending expert review.",
     "translation_reviewed": false
+  },
+  {
+    "id": "string",
+    "crop": "string",
+    "topic": "string",
+    "content": "string",
+    "keywords": [
+      "string"
+    ],
+    "language": "en",
+    "source_name": "",
+    "source_url": "",
+    "verified": false,
+    "scope_note": "",
+    "translations": {
+      "additionalProp1": "string",
+      "additionalProp2": "string",
+      "additionalProp3": "string"
+    },
+    "translation_note": "",
+    "additionalProp1": {}
   }
 ]

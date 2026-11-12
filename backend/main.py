@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager, closing
 from dataclasses import dataclass, field
 from typing import Literal
 from uuid import uuid4
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from dotenv import load_dotenv
 
@@ -25,8 +26,33 @@ from fastapi import (  # noqa: E402
     Query,
     UploadFile,
 )
+from services.knowledge_service import search_knowledge
+from services.knowledge_admin_service import (
+    list_records,
+    add_record,
+    update_record,
+    delete_record,
+)
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from schemas.chat import ChatRequest, ChatResponse
+from schemas.auth import (
+    FarmerRegisterRequest,
+    FarmerLoginRequest,
+    FarmerResponse,
+    AuthResponse,
+    AuthUserResponse,
+)
+from services.auth_service import (
+    register_farmer,
+    login_farmer,
+    get_farmer_from_token,
+    logout_farmer,
+)
 from fastapi.concurrency import run_in_threadpool  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from langdetect import DetectorFactory, LangDetectException, detect  # noqa: E402
@@ -35,11 +61,18 @@ from pydantic import BaseModel, Field  # noqa: E402
 from database import (  # noqa: E402
     check_db,
     clear_session_history,
+    ensure_session_owner,
     get_connection,
     get_session_history,
     init_db,
     prune_old_history,
+    save_chat_turn,
+    save_feedback,
+    get_feedback_stats,
     save_messages,
+    get_admin_farmer_list,
+    get_admin_query_list,
+    get_admin_token_usage,
 )
 from schemas.chat import ChatRequest, ChatResponse  # noqa: E402
 from services.intent_service import analyze_intent  # noqa: E402
@@ -145,10 +178,31 @@ except ValueError:
 INDEX_ON_STARTUP = os.getenv("INDEX_ON_STARTUP", "true").strip().lower() == "true"
 
 MAX_AUDIO_BYTES = 10 * 1024 * 1024
+MAX_REQUEST_BYTES = 12 * 1024 * 1024  # Includes multipart overhead for 10 MB audio uploads.
 # 128 matches the limit enforced by database.py.
 SESSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{8,128}$")
 
+bearer_scheme = HTTPBearer(auto_error=False)
 
+
+def get_current_farmer(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+):
+    if credentials is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required.",
+        )
+
+    farmer = get_farmer_from_token(credentials.credentials)
+
+    if farmer is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired authentication token.",
+        )
+
+    return farmer
 # -------------------------------------------------------------------
 # Application lifecycle and middleware
 # -------------------------------------------------------------------
@@ -202,13 +256,48 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+limiter = Limiter(key_func=get_remote_address)
+
+app.state.limiter = limiter
+app.add_exception_handler(
+    RateLimitExceeded,
+    _rate_limit_exceeded_handler,
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Admin-Key"],
 )
+
+
+@app.middleware("http")
+async def security_and_request_size_middleware(request: Request, call_next):
+    """Apply baseline browser security headers and reject oversized bodies early."""
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_REQUEST_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Request body is too large."},
+                )
+        except ValueError:
+            return JSONResponse(
+                status_code=400, content={"detail": "Invalid Content-Length header."}
+            )
+
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=(self)")
+    response.headers.setdefault("Cache-Control", "no-store")
+    if APP_ENV == "production":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
 
 
 # -------------------------------------------------------------------
@@ -364,10 +453,10 @@ def extract_weather_city(message: str) -> str | None:
 
     # English patterns such as "weather in Agra tomorrow" / "forecast for Varanasi".
     match = re.search(
-        r"\b(?:in|for|at|of)\s+"
+        r" (?:in|for|at|of)\s+"
         r"([A-Za-z][A-Za-z .'-]{1,50}?)"
         r"(?=\s+(?:today|tomorrow|tonight|now|currently|"
-        r"this week|next week)\b|[?.!,]|$)",
+        r"this week|next week) |[?.!,]|$)",
         message,
         re.IGNORECASE,
     )
@@ -620,7 +709,7 @@ async def handle_weather(
         f"Maximum: {day.get('temperature_2m_max', 'N/A')}°C"
     )
 
-    answer = "\n".join(answer_lines)
+    answer = "".join(answer_lines)
 
     return Outcome(answer, weather=weather_data)
 
@@ -684,7 +773,7 @@ async def handle_market(message: str, language: str, crop: str | None) -> Outcom
         "Please confirm the latest rate with your local mandi."
     )
 
-    return Outcome("\n".join(lines), market=market_data)
+    return Outcome("".join(lines), market=market_data)
 
 
 async def localize_record(record: dict, language: str) -> tuple[str, bool]:
@@ -771,7 +860,7 @@ async def handle_knowledge(
     if language == "en":
         if intent == "crop_care":
             used = [r for r in results if str(r.get("content", "")).strip()]
-            answer = "\n\n".join(str(r["content"]).strip() for r in used)
+            answer = "".join(str(r["content"]).strip() for r in used)
         else:
             content = str(selected.get("content", "")).strip()
             if content:
@@ -814,9 +903,9 @@ async def run_route(
     # Scheme lookup points to the eligibility checker; pest control adds the
     # safety rule from the knowledge base (never guess a pesticide).
     if route == "schemes":
-        outcome.answer = f"{outcome.answer}\n\n{msg('scheme_hint', language)}"
+        outcome.answer = f"{outcome.answer}{msg('scheme_hint', language)}"
     elif route == "pest_control":
-        outcome.answer = f"{outcome.answer}\n\n{msg('pest_advice', language)}"
+        outcome.answer = f"{outcome.answer}{msg('pest_advice', language)}"
 
     return outcome
 
@@ -928,24 +1017,22 @@ async def persist_turn(
     intent: str,
     user_message: str,
     assistant_message: str,
-) -> None:
-    """Save the question and answer in ONE transaction (never half a turn).
-
-    A database problem is logged but must not break the chat itself.
-    """
+    user_id: int,
+) -> int | None:
+    """Save one complete chat turn and return the assistant message ID."""
     try:
-        await run_in_threadpool(
-            save_messages,
+        return await run_in_threadpool(
+            save_chat_turn,
             session_id,
-            [
-                {"role": "user", "message": user_message,
-                 "language": language, "intent": intent},
-                {"role": "assistant", "message": assistant_message,
-                 "language": language, "intent": intent},
-            ],
+            language,
+            intent,
+            user_message,
+            assistant_message,
+            user_id,
         )
     except Exception:
         logger.exception("Could not save chat turn.")
+        return None
 
 
 async def persist_flag(**fields) -> None:
@@ -966,28 +1053,124 @@ def validate_session_id(session_id: str) -> None:
 # -------------------------------------------------------------------
 
 def require_admin(x_admin_key: str | None = Header(default=None)) -> None:
-    """Protect endpoints that expose or delete every user's history.
+    """Require a configured, constant-time-checked admin API key in every env.
 
-    - ADMIN_API_KEY set: the X-Admin-Key header must match it.
-    - Not set and APP_ENV=production: the endpoints are disabled.
-    - Not set in development: allowed, so a local frontend keeps working.
+    Development mode is not an authentication bypass: configure ADMIN_API_KEY
+    in the backend environment and keep it out of source control.
     """
-    if ADMIN_API_KEY:
-        supplied = (x_admin_key or "").encode("utf-8")
-        if not hmac.compare_digest(supplied, ADMIN_API_KEY.encode("utf-8")):
-            raise HTTPException(status_code=403, detail="Admin access required.")
-        return
-
-    if APP_ENV == "production":
+    if not ADMIN_API_KEY:
+        logger.error("ADMIN_API_KEY is not configured; refusing admin request.")
         raise HTTPException(
-            status_code=403,
-            detail="This endpoint is disabled. Set ADMIN_API_KEY to enable it.",
+            status_code=503,
+            detail="Admin API is not configured. Set ADMIN_API_KEY on the backend.",
         )
+
+    supplied = (x_admin_key or "").encode("utf-8")
+    expected = ADMIN_API_KEY.encode("utf-8")
+    if not hmac.compare_digest(supplied, expected):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+
+
+# -------------------------------------------------------------------
+# Farmer authentication
+# -------------------------------------------------------------------
+
+@app.post(
+    "/api/v1/auth/register",
+    response_model=AuthResponse,
+)
+@limiter.limit("5/minute")
+async def farmer_register(
+    request: Request,
+    data: FarmerRegisterRequest,
+):
+    try:
+        farmer = await run_in_threadpool(
+            register_farmer,
+            data.name,
+            str(data.email),
+            data.password,
+        )
+
+        return {
+            "status": "success",
+            "message": "Farmer registered successfully.",
+            "user": farmer,
+        }
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
+
+
+@app.post("/api/v1/auth/login")
+@limiter.limit("10/minute")
+async def farmer_login(
+    request: Request,
+    data: FarmerLoginRequest,
+):
+    try:
+        result = await run_in_threadpool(
+            login_farmer,
+            str(data.email),
+            data.password,
+        )
+        return {
+            "status": "success",
+            **result,
+        }
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=401,
+            detail=str(exc),
+        ) from exc
+
+
+@app.get(
+    "/api/v1/auth/me",
+    response_model=AuthUserResponse,
+)
+async def farmer_me(
+    farmer: dict = Depends(get_current_farmer),
+):
+    return {
+        "authenticated": True,
+        "user": farmer,
+    }
+
+
+@app.post("/api/v1/auth/logout")
+async def farmer_logout(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    farmer: dict = Depends(get_current_farmer),
+):
+    revoked = await run_in_threadpool(
+        logout_farmer,
+        credentials.credentials,
+    )
+
+    if not revoked:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not end the authentication session.",
+        )
+
+    return {
+        "status": "success",
+        "message": "Logged out successfully.",
+    }
+
+
 
 
 # -------------------------------------------------------------------
 # Root and health endpoints
 # -------------------------------------------------------------------
+
+
 
 @app.get("/")
 def home():
@@ -1056,6 +1239,28 @@ async def market_prices(
 class DetectLanguageRequest(BaseModel):
     text: str = Field(..., max_length=5000)
 
+class FeedbackRequest(BaseModel):
+    session_id: str = Field(min_length=8, max_length=128)
+    message_id: int = Field(gt=0)
+    rating: Literal["up", "down"]
+
+
+class KnowledgeRecordRequest(BaseModel):
+    id: str = Field(..., min_length=1, max_length=100)
+    crop: str = Field(..., min_length=1, max_length=100)
+    topic: str = Field(..., min_length=1, max_length=100)
+    content: str = Field(..., min_length=1, max_length=10000)
+    keywords: list[str] = Field(default_factory=list, max_length=50)
+    language: Literal["en", "hi", "kn"] = "en"
+    source_name: str = Field(default="", max_length=300)
+    source_url: str = Field(default="", max_length=1000)
+    verified: bool = False
+    scope_note: str = Field(default="", max_length=2000)
+    translations: dict[str, str] = Field(default_factory=dict)
+    translation_note: str = Field(default="", max_length=1000)
+
+    model_config = {"extra": "allow"}
+
 
 def detect_language_code(text: str) -> str:
     """Return en / hi / kn, or "unknown".
@@ -1063,8 +1268,8 @@ def detect_language_code(text: str) -> str:
     The script is checked first: langdetect is unreliable on short Indic text
     and often labels Hindi as Marathi or Nepali.
     """
-    devanagari = sum("\u0900" <= ch <= "\u097F" for ch in text)
-    kannada = sum("\u0C80" <= ch <= "\u0CFF" for ch in text)
+    devanagari = sum("ऀ" <= ch <= "ॿ" for ch in text)
+    kannada = sum("ಀ" <= ch <= "೿" for ch in text)
     latin = sum(ch.isascii() and ch.isalpha() for ch in text)
 
     if (devanagari or kannada) and (devanagari + kannada) >= latin:
@@ -1093,14 +1298,32 @@ def detect_language_endpoint(request: DetectLanguageRequest):
 # -------------------------------------------------------------------
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+@limiter.limit("30/minute")
+async def chat(request: Request, chat_data: ChatRequest, farmer: dict = Depends(get_current_farmer),):
     started = time.perf_counter()
-    language = request.language
+    language = chat_data.language
 
-    message = request.message  # already stripped and length-checked by ChatRequest
+    message = chat_data.message  # already stripped and length-checked by ChatRequest
 
-    session_id = request.session_id or str(uuid4())
+    session_id = chat_data.session_id or str(uuid4())
     validate_session_id(session_id)
+
+    is_owner = await run_in_threadpool(
+        ensure_session_owner,
+        session_id,
+        farmer["id"],
+    )
+
+    if not is_owner:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have access to this conversation.",
+        )
+
+
+
+
+
 
     session = get_or_create_session(session_id, language)
     session.preferences["language"] = language
@@ -1171,7 +1394,9 @@ async def chat(request: ChatRequest):
     )
 
     add_message(session, "assistant", answer)
-    await persist_turn(session_id, language, intent, message, answer)
+    answer_message_id = await persist_turn(
+        session_id, language, intent, message, answer, farmer["id"],
+    )
 
     if quality.needs_review:
         await persist_flag(
@@ -1194,11 +1419,11 @@ async def chat(request: ChatRequest):
         quality.needs_review,
         (time.perf_counter() - started) * 1000,
     )
-
     return ChatResponse(
         answer=answer,
         language=language,
         session_id=session_id,
+        answer_message_id=answer_message_id,
         intent=intent,
         confidence=analysis["confidence"],
         entities=entities,
@@ -1212,15 +1437,68 @@ async def chat(request: ChatRequest):
         needs_review=quality.needs_review,
     )
 
+# -------------------------------------------------------------------
+# Response feedback
+# -------------------------------------------------------------------
+
+@app.post("/api/v1/feedback")
+async def submit_feedback(request: FeedbackRequest, farmer: dict = Depends(get_current_farmer),):
+    validate_session_id(request.session_id)
+
+    try:
+        await run_in_threadpool(
+            save_feedback,
+            request.session_id,
+            request.message_id,
+            request.rating,
+            farmer["id"],
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
+
+    return {
+        "status": "success",
+        "message": "Feedback saved successfully.",
+        "message_id": request.message_id,
+        "rating": request.rating,
+    }
+
+
+@app.get("/api/v1/admin/feedback-stats")
+async def admin_feedback_stats(
+    _: None = Depends(require_admin),
+):
+    try:
+        stats = await run_in_threadpool(get_feedback_stats)
+        return {
+            "status": "success",
+            "data": stats,
+        }
+    except Exception:
+        logger.exception("Could not retrieve feedback statistics.")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to retrieve feedback statistics.",
+        )
+
 
 # -------------------------------------------------------------------
 # Speech transcription
 # -------------------------------------------------------------------
 
 @app.post("/api/v1/speech/transcribe")
-def speech_to_text(file: UploadFile = File(...)):
+@limiter.limit("10/minute")
+async def speech_to_text(
+    request: Request,
+    file: UploadFile = File(...),
+    farmer: dict = Depends(get_current_farmer),
+):
+    """Authenticated, bounded speech transcription for a signed-in farmer."""
     try:
-        audio_bytes = file.file.read(MAX_AUDIO_BYTES + 1)
+        audio_bytes = await file.read(MAX_AUDIO_BYTES + 1)
 
         if not audio_bytes:
             raise HTTPException(status_code=400, detail="The audio file is empty.")
@@ -1230,23 +1508,23 @@ def speech_to_text(file: UploadFile = File(...)):
                 detail=f"Audio file is too large (maximum {MAX_AUDIO_BYTES // (1024 * 1024)} MB).",
             )
 
-        result = transcribe_audio(
-            audio_bytes=audio_bytes,
-            filename=file.filename or "",
+        result = await run_in_threadpool(
+            transcribe_audio, audio_bytes, file.filename or "audio.webm"
         )
-
         return {"status": "success", **result}
 
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
-        logger.exception("Speech transcription failed.")
+        logger.exception("Speech transcription failed for farmer_id=%s", farmer["id"])
         raise HTTPException(
             status_code=503,
             detail="Speech transcription is temporarily unavailable.",
         ) from exc
     finally:
-        file.file.close()
+        await file.close()
 
 
 # -------------------------------------------------------------------
@@ -1286,34 +1564,88 @@ def list_chat_history(
     return {"sessions": [dict(row) for row in rows]}
 
 
+
+@app.get("/api/v1/chat/my-history")
+def list_farmer_chat_history(
+    limit: int = Query(100, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    farmer: dict = Depends(get_current_farmer),
+):
+    """List only the logged-in farmer's conversations."""
+
+    with closing(get_connection()) as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                chat_history.session_id,
+                (
+                    SELECT message
+                    FROM chat_history AS first_message
+                    WHERE first_message.session_id = chat_history.session_id
+                      AND first_message.role = 'user'
+                    ORDER BY first_message.id ASC
+                    LIMIT 1
+                ) AS first_question,
+                MAX(chat_history.created_at) AS last_message_at,
+                MAX(chat_history.id) AS last_message_id
+            FROM chat_history
+            INNER JOIN sessions
+                ON sessions.session_id = chat_history.session_id
+            WHERE sessions.user_id = ?
+            GROUP BY chat_history.session_id
+            ORDER BY last_message_id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (farmer["id"], limit, offset),
+        ).fetchall()
+
+    return {"sessions": [dict(row) for row in rows]}
+
+
+
 @app.get("/api/v1/chat/history/{session_id}")
 def get_chat_history(
     session_id: str,
     limit: int = Query(200, ge=1, le=200),
     before_id: int | None = Query(None, ge=1),
+    farmer: dict = Depends(get_current_farmer),
 ):
-    """Most recent `limit` messages, oldest first.
-
-    To load older messages, pass the smallest `id` you already have as `before_id`.
-    """
+    """Return conversation history belonging to the authenticated farmer."""
     validate_session_id(session_id)
+
+    messages = get_session_history(
+        session_id,
+        user_id=farmer["id"],
+        limit=limit,
+        before_id=before_id,
+    )
 
     return {
         "session_id": session_id,
-        "messages": get_session_history(session_id, limit=limit, before_id=before_id),
+        "messages": messages,
     }
 
 
 @app.delete("/api/v1/chat/history/{session_id}")
-def delete_chat(session_id: str):
+def delete_chat(
+    session_id: str,
+    farmer: dict = Depends(get_current_farmer),
+):
     validate_session_id(session_id)
 
-    deleted_in_db = clear_session_history(session_id)
-    # Also drop the in-memory session so old context (crop, city) is not reused.
-    deleted_in_memory = delete_session(session_id)
+    deleted = clear_session_history(
+        session_id,
+        user_id=farmer["id"],
+    )
 
-    if not (deleted_in_db or deleted_in_memory):
-        raise HTTPException(status_code=404, detail="Conversation not found.")
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found.",
+        )
+
+    # Clear in-memory context only after ownership is verified.
+    delete_session(session_id)
 
     return {"message": "Conversation deleted successfully."}
 
@@ -1386,3 +1718,92 @@ def review_flagged_answer(flag_id: int, review: FlagReview):
 @app.get("/api/v1/admin/stats", dependencies=[Depends(require_admin)])
 def admin_stats():
     return quality_stats()
+
+
+@app.get("/api/v1/admin/farmers", dependencies=[Depends(require_admin)])
+def admin_farmers(limit: int = Query(default=100, ge=1, le=200), offset: int = Query(default=0, ge=0)):
+    """Paginated farmer directory; password hashes and credentials are never exposed."""
+    return get_admin_farmer_list(limit=limit, offset=offset)
+
+
+@app.get("/api/v1/admin/queries", dependencies=[Depends(require_admin)])
+def admin_queries(limit: int = Query(default=100, ge=1, le=200), offset: int = Query(default=0, ge=0)):
+    """Recent farmer questions with linked farmer identity where available."""
+    return get_admin_query_list(limit=limit, offset=offset)
+
+
+@app.get("/api/v1/admin/token-usage", dependencies=[Depends(require_admin)])
+def admin_token_usage():
+    """Provider-reported LLM token totals, model breakdown and daily totals."""
+    return get_admin_token_usage()
+
+
+@app.get("/api/v1/admin/knowledge")
+def admin_list_knowledge(
+    _: None = Depends(require_admin),
+):
+    records = list_records()
+    return {
+        "count": len(records),
+        "records": records,
+    }
+
+
+@app.post("/api/v1/admin/knowledge")
+def admin_add_knowledge(
+    record: KnowledgeRecordRequest,
+    _: None = Depends(require_admin),
+):
+    try:
+        saved = add_record(record.model_dump())
+        return {
+            "message": "Knowledge record added successfully.",
+            "record": saved,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not update the knowledge index.",
+        )
+
+
+@app.put("/api/v1/admin/knowledge/{record_id}")
+def admin_update_knowledge(
+    record_id: str,
+    record: KnowledgeRecordRequest,
+    _: None = Depends(require_admin),
+):
+    try:
+        updated = update_record(record_id, record.model_dump())
+        return {
+            "message": "Knowledge record updated successfully.",
+            "record": updated,
+        }
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Knowledge record not found.")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not update the knowledge index.",
+        )
+
+
+@app.delete("/api/v1/admin/knowledge/{record_id}")
+def admin_delete_knowledge(
+    record_id: str,
+    _: None = Depends(require_admin),
+):
+    try:
+        delete_record(record_id)
+        return {"message": "Knowledge record deleted successfully."}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Knowledge record not found.")
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not update the knowledge index.",
+        )
