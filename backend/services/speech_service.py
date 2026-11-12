@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import httpx
 import shutil
 import subprocess
 import tempfile
@@ -8,11 +10,20 @@ from pathlib import Path
 from threading import BoundedSemaphore, Lock
 from typing import Any
 
-import librosa
-import numpy as np
-import sherpa_onnx
-import whisper
-from huggingface_hub import hf_hub_download
+try:
+    import librosa
+    import numpy as np
+    import sherpa_onnx
+    import whisper
+    from huggingface_hub import hf_hub_download
+    _SPEECH_DEPS_AVAILABLE = True
+except ImportError:
+    librosa = None
+    np = None
+    sherpa_onnx = None
+    whisper = None
+    hf_hub_download = None
+    _SPEECH_DEPS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -235,6 +246,35 @@ def transcribe_with_indic(audio: np.ndarray, language: str) -> str:
     return stream.result.text.strip()
 
 
+def _transcribe_with_sarvam(audio_bytes: bytes, filename: str) -> dict[str, Any]:
+    api_key = os.getenv("SARVAM_API_KEY", "").strip()
+    if not api_key:
+        raise TranscriptionError("SARVAM_API_KEY is not configured for cloud voice transcription.")
+    try:
+        with httpx.Client(timeout=45.0) as client:
+            resp = client.post(
+                "https://api.sarvam.ai/speech-to-text",
+                headers={"api-subscription-key": api_key},
+                files={"file": (filename or "audio.webm", audio_bytes, "audio/webm")},
+                data={"model": "saaras:v3", "mode": "transcribe", "language_code": "unknown"},
+            )
+            resp.raise_for_status()
+            payload = resp.json()
+    except Exception as exc:
+        raise TranscriptionError(f"Sarvam speech transcription failed: {exc}") from exc
+
+    raw_lang = str(payload.get("language_code") or "en-IN").lower()
+    lang = "hi" if raw_lang.startswith("hi") else ("kn" if raw_lang.startswith("kn") else "en")
+    return {
+        "transcript": str(payload.get("transcript", "")).strip(),
+        "detected_language": lang,
+        "language_confidence": float(payload.get("language_probability") or 0.95),
+        "duration_seconds": 0.0,
+        "language_detection_model": "sarvam-saaras-v3",
+        "transcription_model": "sarvam-saaras-v3",
+    }
+
+
 def transcribe_audio(audio_bytes: bytes, filename: str) -> dict[str, Any]:
     """Detect language, then route to IndicConformer (hi/kn) or Whisper.
 
@@ -254,6 +294,9 @@ def transcribe_audio(audio_bytes: bytes, filename: str) -> dict[str, Any]:
         raise AudioValidationError(f"Unsupported audio format extension: {suffix or '(none)'}")
 
     # Wait for a free slot, but not forever.
+    if not _SPEECH_DEPS_AVAILABLE or os.getenv('SARVAM_API_KEY', '').strip():
+        return _transcribe_with_sarvam(audio_bytes, filename)
+
     if not _slots.acquire(timeout=SLOT_WAIT_SECONDS):
         raise TranscriptionError("The speech service is busy. Please try again shortly.")
 

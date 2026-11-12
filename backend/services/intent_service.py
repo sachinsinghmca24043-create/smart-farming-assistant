@@ -4,7 +4,10 @@ import logging
 import re
 from functools import lru_cache
 
-from transformers import pipeline
+try:
+    from transformers import pipeline
+except ImportError:
+    pipeline = None
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +173,8 @@ LOCATION_ALIASES = {
 @lru_cache(maxsize=1)
 def get_classifier():
     """Load the Hugging Face model once and reuse it."""
+    if pipeline is None:
+        raise RuntimeError("transformers not installed")
     return pipeline(
         "zero-shot-classification",
         model=MODEL_NAME,

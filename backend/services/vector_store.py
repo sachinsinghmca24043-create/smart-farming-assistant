@@ -3,22 +3,49 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 from pathlib import Path
 from threading import Lock, RLock
 from typing import Any
 
 import chromadb
-from sentence_transformers import SentenceTransformer
+try:
+    from sentence_transformers import SentenceTransformer
+    _LOCAL_EMBEDDINGS_AVAILABLE = True
+except ImportError:
+    SentenceTransformer = None
+    _LOCAL_EMBEDDINGS_AVAILABLE = False
+
+class _GeminiEmbedder:
+    def __init__(self) -> None:
+        from google import genai
+        self._client = genai.Client(api_key=os.getenv("GEMINI_API_KEY", "").strip())
+
+    def encode(self, texts: list[str], normalize_embeddings: bool = True, batch_size: int = 32, show_progress_bar: bool = False):
+        out = []
+        for start in range(0, len(texts), 50):
+            batch = texts[start:start + 50]
+            res = self._client.models.embed_content(model="gemini-embedding-001", contents=batch)
+            for emb in res.embeddings:
+                vec = list(emb.values)
+                if normalize_embeddings:
+                    norm = sum(x * x for x in vec) ** 0.5 or 1.0
+                    vec = [x / norm for x in vec]
+                out.append(vec)
+        class _Arr(list):
+            def tolist(self):
+                return list(self)
+        return _Arr(out)
 
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 KB_PATH = BASE_DIR / "knowledge_base" / "agriculture.json"
 CHROMA_PATH = BASE_DIR / "chroma_db"
-KB_HASH_PATH = CHROMA_PATH / "kb.sha256"  # remembers which KB version is indexed
+KB_HASH_PATH = CHROMA_PATH / ("kb.sha256" if _LOCAL_EMBEDDINGS_AVAILABLE else "kb_gemini.sha256")  # remembers which KB version is indexed
 
 MODEL_NAME = "intfloat/multilingual-e5-small"
-COLLECTION_NAME = "agriculture_knowledge"
+COLLECTION_NAME = "agriculture_knowledge" if _LOCAL_EMBEDDINGS_AVAILABLE else "agriculture_knowledge_gemini"
 
 # E5 models need these prefixes at embedding time (not in the stored text).
 PASSAGE_PREFIX = "passage: "
@@ -51,7 +78,7 @@ class AgricultureVectorStore:
             with self._model_lock:
                 if self._model is None:
                     logger.info("Loading SentenceTransformer model '%s'...", MODEL_NAME)
-                    self._model = SentenceTransformer(MODEL_NAME)
+                    self._model = SentenceTransformer(MODEL_NAME) if _LOCAL_EMBEDDINGS_AVAILABLE else _GeminiEmbedder()
         return self._model
 
     @property
