@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sachin.smartfarming",
+      "sha256_cert_fingerprints": [
+        "A1:99:D4:19:F0:8F:56:10:9C:91:B6:E0:0B:59:87:EF:95:5F:8F:21:F7:06:47:C4:95:9D:63:C7:0E:5B:A3:17"
+      ]
+    }
+  }
+]
