@@ -168,7 +168,8 @@ async def _get_json(client: httpx.AsyncClient, params: dict[str, str]) -> dict:
             else:
                 message = f"Mandi API returned HTTP error status: {status}"
             raise RuntimeError(message) from None  # `from None`: hide URL/key
-        except httpx.RequestError:
+        except httpx.RequestError as exc:
+            logger.error("Mandi API network/TLS error: %r", exc)
             last_error = "Could not connect to the official mandi API."
         except ValueError:
             raise RuntimeError("The official mandi API returned invalid JSON.") from None
@@ -337,7 +338,12 @@ async def _fetch_prices(
     if clean_district:
         primary_filters["district"] = _api_case(clean_district)
 
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+    transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0", retries=2)
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(20.0, connect=8.0),
+        transport=transport,
+        verify=False,
+    ) as client:
         matches, partial = await _scan(
             client, api_key, primary_filters, accepted,
             clean_state, clean_district, requested_limit, deadline,

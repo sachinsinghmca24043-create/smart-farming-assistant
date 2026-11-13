@@ -85,11 +85,17 @@ _client: httpx.AsyncClient | None = None
 
 
 def _get_client() -> httpx.AsyncClient:
-    """One pooled client for the whole app (connection reuse, no per-call TLS handshake)."""
+    """One pooled IPv4 client for the whole app."""
     global _client
     if _client is None or _client.is_closed:
+        transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0", retries=2)
         _client = httpx.AsyncClient(
-            timeout=TIMEOUT_SECONDS,
+            timeout=httpx.Timeout(15.0, connect=6.0),
+            transport=transport,
+            headers={
+                "User-Agent": "SmartKrishiFarmingAssistant/1.0 (https://smart-farming-assistant-opal.vercel.app)",
+                "Accept": "application/json",
+            },
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )
     return _client
