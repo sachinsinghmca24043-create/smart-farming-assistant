@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-export const preferredRegion = "bom1";
+export const preferredRegion = ["bom1"];
 
 export async function GET(req: NextRequest) {
   const upstream = new URL(
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       cache: "no-store",
     });
     const text = await res.text();
-    return new Next/Response(text, {
+    return new NextResponse(text, {
       status: res.status,
       headers: { "Content-Type": "application/json" },
     });
