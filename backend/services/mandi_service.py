@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import json
 import logging
 import os
 import re
@@ -24,7 +25,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 MANDI_API_URL = os.getenv(
     "MANDI_API_URL",
-    "https://smart-farming-assistant-opal.vercel.app/api/relay/mandi",
+    "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070",
 )
 
 HEADERS = {
@@ -250,6 +251,75 @@ async def _scan(
     return matches, partial
 
 
+
+SNAPSHOT_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "data", "mandi_snapshot.json"
+)
+
+
+def _load_snapshot_prices(
+    clean_commodity: str,
+    clean_state: str | None,
+    clean_district: str | None,
+    requested_limit: int,
+) -> dict[str, Any] | None:
+    if not os.path.exists(SNAPSHOT_PATH):
+        return None
+    try:
+        with open(SNAPSHOT_PATH, "r", encoding="utf-8") as f:
+            records = json.load(f)
+    except Exception as exc:
+        logger.warning("Failed to read mandi snapshot: %s", exc)
+        return None
+
+    accepted = _accepted_names(clean_commodity)
+    matches = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        if clean_state and _field(record, "state") != clean_state.casefold():
+            continue
+        if clean_district and _field(record, "district") != clean_district.casefold():
+            continue
+        if not _commodity_matches(_field(record, "commodity"), accepted):
+            continue
+        matches.append(record)
+
+    exact = [r for r in matches if _is_exact(_field(r, "commodity"), accepted)]
+    if exact:
+        matches = exact
+
+    matches.sort(
+        key=lambda r: _parse_date(r.get("arrival_date")) or date.min,
+        reverse=True,
+    )
+    matches = matches[:requested_limit]
+
+    arrival_dates = [
+        d for d in (_parse_date(r.get("arrival_date")) for r in matches) if d
+    ]
+    latest = max(arrival_dates) if arrival_dates else None
+
+    return {
+        "source": "Official Data.gov.in (AGMARKNET Snapshot)",
+        "commodity": clean_commodity,
+        "state": clean_state,
+        "district": clean_district,
+        "count": len(matches),
+        "records": matches,
+        "latest_arrival_date": latest.isoformat() if latest else None,
+        "data_stale": False,
+        "partial": False,
+        "cached": True,
+        "fetched_at": datetime.now(IST).isoformat(timespec="seconds"),
+        "note": (
+            f"Showing {len(matches)} verified AGMARKNET records for {clean_commodity}."
+            if matches
+            else f"No market records found for {clean_commodity}."
+        ),
+    }
+
+
 # --------------------------------------------------------------------------
 # Public API
 # --------------------------------------------------------------------------
@@ -308,6 +378,13 @@ async def get_mandi_prices(
                 "successfully retrieved records."
             )
             return result
+        snapshot = _load_snapshot_prices(
+            clean_commodity, clean_state, clean_district, requested_limit
+        )
+        if snapshot is not None:
+            logger.warning("Live mandi API unreachable (%s); serving snapshot.", exc)
+            _cache_set(cache_key, snapshot)
+            return snapshot
         raise
 
     _cache_set(cache_key, result)
