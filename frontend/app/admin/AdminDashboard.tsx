@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type FeedbackStats = {
   total_feedback: number;
@@ -70,6 +71,17 @@ const emptyKnowledgeRecord: KnowledgeRecord = {
 
 
 export default function AdminPage() {
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/admin/logout", { method: "POST" });
+    } finally {
+      router.replace("/admin/login");
+    }
+  }
   const [feedback, setFeedback] = useState<FeedbackStats | null>(null);
   const [farmers, setFarmers] = useState<FarmerRow[]>([]);
   const [queries, setQueries] = useState<QueryRow[]>([]);
@@ -361,18 +373,28 @@ async function deleteKnowledgeRecord(id: string) {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              void loadDashboard();
-              void loadFlags();
-              void loadKnowledge();
-              void loadMonitoring();
-            }}
-            className="rounded-xl border border-green-200 bg-white px-4 py-2 text-sm font-medium text-green-800 hover:bg-green-50"
-          >
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                void loadDashboard();
+                void loadFlags();
+                void loadKnowledge();
+                void loadMonitoring();
+              }}
+              className="rounded-xl border border-green-200 bg-white px-4 py-2 text-sm font-medium text-green-800 hover:bg-green-50"
+            >
             Refresh dashboard
           </button>
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            disabled={loggingOut}
+            className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            {loggingOut ? "Logging out..." : "Logout"}
+          </button>
+        </div>
         </div>
 
         {loading && (
