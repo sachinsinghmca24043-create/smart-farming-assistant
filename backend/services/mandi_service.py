@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 # in log files.
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-MANDI_API_URL = (
-    "https://api.data.gov.in/resource/"
-    "9ef84268-d588-465a-a308-a864a43d0070"
+MANDI_API_URL = os.getenv(
+    "MANDI_API_URL",
+    "https://smart-farming-assistant-opal.vercel.app/api/relay/mandi",
 )
 
 HEADERS = {

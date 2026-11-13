@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 # --- Tunables ---
 GEO_URL = "https://geocoding-api.open-meteo.com/v1/search"
-FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+import os
+FORECAST_URL = os.getenv("WEATHER_API_URL", "https://smart-farming-assistant-opal.vercel.app/api/relay/weather")
 TIMEOUT_SECONDS = 12.0
 MAX_ATTEMPTS = 3
 RETRY_BASE_DELAY_SECONDS = 0.5
