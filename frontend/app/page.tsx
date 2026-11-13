@@ -897,9 +897,22 @@ export default function Home() {
   }, [applySession, loadHistory, loadSession]);
 
 
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    const updateStatus = () => setIsOffline(!navigator.onLine);
+    updateStatus();
+    window.addEventListener("online", updateStatus);
+    window.addEventListener("offline", updateStatus);
+    return () => {
+      window.removeEventListener("online", updateStatus);
+      window.removeEventListener("offline", updateStatus);
+    };
+  }, []);
+
   // Restore the last conversation from local storage when offline.
-useEffect(() => {
-  if (navigator.onLine) return;
+  useEffect(() => {
+    if (navigator.onLine) return;
 
   try {
     const cached = localStorage.getItem(OFFLINE_CHAT_CACHE_KEY);
@@ -1600,6 +1613,14 @@ useEffect(() => {
 
   return (
     <div className="h-dvh overflow-hidden bg-[#f6faf6] text-slate-800">
+      {isOffline && (
+        <div
+          role="status"
+          className="sticky top-0 z-50 border-b border-amber-300 bg-amber-100 px-4 py-2.5 text-center text-sm font-medium text-amber-950"
+        >
+          Offline — reconnect to ask new questions
+        </div>
+      )}
       <div className="flex h-full flex-col lg:flex-row">
         {/* ============ Sidebar ============ */}
         <aside className="relative w-full shrink-0 overflow-hidden border-b border-slate-100 bg-white/90 lg:h-full lg:w-[265px] lg:border-b-0 lg:border-r">
