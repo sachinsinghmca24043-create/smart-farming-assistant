@@ -59,8 +59,10 @@ def register_farmer(
 
             user_id = cursor.lastrowid
 
-    except sqlite3.IntegrityError:
-        raise ValueError("An account with this email already exists.")
+    except Exception as exc:
+        if "unique" in str(exc).lower() or isinstance(exc, sqlite3.IntegrityError):
+            raise ValueError("An account with this email already exists.")
+        raise
 
     return {
         "id": user_id,
