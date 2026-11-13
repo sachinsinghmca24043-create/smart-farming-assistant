@@ -171,11 +171,12 @@ def init_quality_table() -> None:
     """Create the review-queue table. Safe to call on every startup."""
     global _table_ready
 
+    pk_col = "SERIAL PRIMARY KEY" if os.getenv("DATABASE_URL") else "INTEGER PRIMARY KEY AUTOINCREMENT"
     with closing(get_connection()) as connection:
         connection.execute(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS flagged_responses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {pk_col},
                 session_id TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now')),
                 question TEXT NOT NULL,
