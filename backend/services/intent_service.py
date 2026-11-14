@@ -108,7 +108,7 @@ TOPIC_ALIASES = {
         "कटाई के बाद", "फसल कटाई के बाद", "ಕೊಯ್ಲಿನ ನಂತರ",
     ],
     "pest_disease": [
-        "pest", "pests", "insect", "insects", "disease",
+        "pest", "pests", "insect", "insects", "disease", "caterpillar", "caterpillars", "larva", "larvae", "borer", "worm", "holes in the leaves", "holes in leaves", "leaf holes", "feeding on the undersides",
         "yellow spots", "yellow spot", "spotted leaves", "yellow leaves",
         "leaf spots",
         "पीले धब्बे", "पीली पत्तियां", "पत्तियों पर धब्बे",

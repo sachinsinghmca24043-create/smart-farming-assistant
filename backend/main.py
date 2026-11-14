@@ -812,7 +812,7 @@ async def handle_knowledge(
 
     # "other" has no matching topic; skip straight to the fallback message
     # instead of returning loosely related passages.
-    if intent != "other":
+    if intent != "other" or crop is not None:
         try:
             # Embedding + vector search is blocking work: keep it off the event loop.
             results = await run_in_threadpool(
@@ -857,7 +857,7 @@ async def handle_knowledge(
                 return Outcome(generated.text, records=results, grounded=True)
 
             # Passages didn't cover this specific sub-question; use safe general agri guidance if agricultural.
-            if intent != "other":
+            if intent != "other" or crop is not None:
                 general = await run_in_threadpool(
                     generate_general_agri_answer, message, language, context
                 )
