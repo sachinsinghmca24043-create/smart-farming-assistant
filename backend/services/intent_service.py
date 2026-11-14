@@ -81,7 +81,7 @@ TOPIC_ALIASES = {
     ],
     "crop_care": [
         "crop care", "crop cultivation", "crop health", "crop management",
-        "take care of my crop", "care of the crop", "how to grow", "cultivate",
+        "take care of my crop", "take care of", "care for", "paddy care", "rice care", "care of the crop", "how to grow", "cultivate",
         "देखभाल", "फसल की देखभाल", "खेती कैसे करें",
        "ಬೆಳೆ ಆರೈಕೆ", "ಬೆಳೆಗಳನ್ನು ಆರೋಗ್ಯಕರವಾಗಿ",
        "ಭತ್ತದ ಬೆಳೆಯನ್ನು ಹೇಗೆ ಆರೈಕೆ ಮಾಡಬೇಕು",
