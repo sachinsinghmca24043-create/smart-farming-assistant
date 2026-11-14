@@ -105,7 +105,6 @@ _startup_log = logging.getLogger("smart_farming.api")
 try:
     from services.llm_service import (  # noqa: E402
         generate_grounded_answer,
-        generate_general_agri_answer,
         is_configured as llm_is_configured,
     )
 except Exception:  # e.g. google-genai missing; answers fall back to stored passages
