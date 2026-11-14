@@ -309,3 +309,52 @@ def generate_grounded_answer(
         return GroundedAnswer(text="", grounded=False, model=model)
 
     return GroundedAnswer(text=text, grounded=True, model=model)
+
+GENERAL_AGRI_INSTRUCTION = """You are an agricultural extension assistant for Indian farmers.
+The farmer asked a valid agricultural question that is not covered in our local verified document cache.
+
+RULES:
+1. Answer ONLY if the question is genuinely about farming, crops, soil, irrigation, livestock, weather, or agricultural schemes. If it is NOT about agriculture, return exactly: NO_ANSWER
+2. Provide safe, practical, widely accepted Indian agronomic best practices (e.g., field sanitation, proper drainage, soil-test-based nutrient management, yellow sticky/pheromone traps, and regular scouting).
+3. NEVER invent specific chemical pesticide dosages, banned chemicals, or unverified subsidy amounts.
+4. Reply in the requested language: Hindi, Kannada, or English (3-5 short, clear sentences).
+5. End with a brief reminder to consult the local Krishi Vigyan Kendra (KVK) or Kisan Call Centre (1800-180-1551) for crop- and region-specific recommendations.
+"""
+
+
+def generate_general_agri_answer(
+    question: str,
+    language: str,
+    context: str = "",
+) -> GroundedAnswer:
+    """Fallback agronomic guidance for valid farming questions not yet in ChromaDB."""
+    if not isinstance(question, str) or not question.strip():
+        return GroundedAnswer(text="", grounded=False, model=_model_name())
+
+    lang_name = LANGUAGE_NAMES.get(language, "English")
+    lines = [f"Reply language: {lang_name}"]
+    if context.strip():
+        lines.append(f"Conversation context: {context.strip()}")
+    lines.append(f"<question>\n{question.strip()[:MAX_QUESTION_CHARS]}\n</question>")
+    prompt = "\n\n".join(lines)
+
+    model = _model_name()
+    client = _get_client()
+    kwargs = {
+        "system_instruction": GENERAL_AGRI_INSTRUCTION,
+        "temperature": 0.3,
+        "max_output_tokens": MAX_OUTPUT_TOKENS,
+    }
+    thinking = _thinking_config(model)
+    if thinking is not None:
+        kwargs["thinking_config"] = thinking
+
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=types.GenerateContentConfig(**kwargs),
+    )
+    text = _clean((getattr(response, "text", None) or "").strip())
+    if not text or text.upper().startswith(NO_ANSWER_TOKEN):
+        return GroundedAnswer(text="", grounded=False, model=model)
+    return GroundedAnswer(text=text, grounded=False, model=model)

@@ -105,6 +105,7 @@ _startup_log = logging.getLogger("smart_farming.api")
 try:
     from services.llm_service import (  # noqa: E402
         generate_grounded_answer,
+        generate_general_agri_answer,
         is_configured as llm_is_configured,
     )
 except Exception:  # e.g. google-genai missing; answers fall back to stored passages
@@ -826,6 +827,15 @@ async def handle_knowledge(
             logger.exception("Knowledge search failed; using fallback response.")
 
     if not results:
+        if intent != "other" and llm_is_configured():
+            try:
+                general = await run_in_threadpool(
+                    generate_general_agri_answer, message, language, context
+                )
+                if general.text:
+                    return Outcome(general.text, kind="general_agri", grounded=False)
+            except Exception:
+                logger.warning("General agri fallback failed.", exc_info=True)
         return Outcome(msg("no_answer", language), kind="fallback", grounded=False)
 
     # 1) Preferred path: the LLM writes the answer using ONLY the retrieved passages.
@@ -846,7 +856,13 @@ async def handle_knowledge(
             if generated.grounded:
                 return Outcome(generated.text, records=results, grounded=True)
 
-            # The passages do not answer this question: say so instead of guessing.
+            # Passages didn't cover this specific sub-question; use safe general agri guidance if agricultural.
+            if intent != "other":
+                general = await run_in_threadpool(
+                    generate_general_agri_answer, message, language, context
+                )
+                if general.text:
+                    return Outcome(general.text, kind="general_agri", grounded=False)
             return Outcome(msg("no_answer", language), kind="fallback", grounded=False)
         except Exception:
             logger.warning("LLM answer failed; using stored passages.", exc_info=True)
