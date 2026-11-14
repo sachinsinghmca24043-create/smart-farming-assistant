@@ -401,5 +401,31 @@
     },
     "translation_note": "",
     "additionalProp1": {}
+  },
+  {
+    "id": "rice_007",
+    "crop": "rice",
+    "topic": "crop_care",
+    "keywords": [
+      "rice",
+      "paddy",
+      "crop care",
+      "cultivation",
+      "management",
+      "धान",
+      "धान की देखभाल",
+      "ಭತ್ತ",
+      "ಭತ್ತದ ಬೆಳೆ ನಿರ್ವಹಣೆ"
+    ],
+    "content": "According to ICAR rice production guidelines, effective paddy crop care involves timely transplanting of healthy seedlings, maintaining a 3–5 cm standing water level from flowering to milk stage while avoiding prolonged waterlogging through proper field drainage, adopting soil-test-based balanced nutrient management, and regular field monitoring for weeds and pests before applying any control measure.",
+    "language": "en",
+    "source_name": "ICAR-CIWA & ICAR-NRRI Rice Production Advisories",
+    "source_url": "https://www.ciwa.icar.gov.in/gks/crop-production",
+    "verified": true,
+    "scope_note": "Adapt spacing, nutrient doses, and irrigation schedule to local variety and KVK recommendations.",
+    "translations": {
+      "hi": "आईसीएआर (ICAR) धान उत्पादन दिशानिर्देशों के अनुसार, धान की अच्छी देखभाल के लिए स्वस्थ पौध की समय पर रोपाई करें, फूल आने से दूधिया अवस्था तक खेत में 3–5 सेमी पानी का स्तर बनाए रखें और जल निकासी की उचित व्यवस्था करके लंबे जलभराव से बचें, मिट्टी परीक्षण के आधार पर संतुलित पोषक तत्व दें, तथा किसी भी दवा का उपयोग करने से पहले खरपतवार और कीटों की नियमित निगरानी करें।",
+      "kn": "ICAR ಭತ್ತ ಉತ್ಪಾದನಾ ಮಾರ್ಗಸೂಚಿಗಳ ಪ್ರಕಾರ, ಉತ್ತಮ ಭತ್ತದ ಬೆಳೆ ನಿರ್ವಹಣೆಗೆ ಆರೋಗ್ಯಕರ ಸಸಿಗಳನ್ನು ಸಮಯಕ್ಕೆ ಸರಿಯಾಗಿ ನಾಟಿ ಮಾಡುವುದು, ಹೂ ಬಿಡುವ ಹಂತದಿಂದ ಹಾಲಿನ ಹಂತದವರೆಗೆ 3–5 ಸೆಂ.ಮೀ. ನೀರಿನ ಮಟ್ಟವನ್ನು ಕಾಯ್ದುಕೊಂಡು ಸರಿಯಾದ ಬಸಿಕಾಲುವೆ ಮೂಲಕ ದೀರ್ಘಕಾಲದ ಜಲಾವೃತವನ್ನು ತಪ್ಪಿಸುವುದು, ಮಣ್ಣು ಪರೀಕ್ಷೆಯ ಆಧಾರದ ಮೇಲೆ ಸಮತೋಲಿತ ಪೋಷಕಾಂಶ ನೀಡುವುದು ಮತ್ತು ಕಳೆ ಹಾಗೂ ಕೀಟಗಳ ನಿಯಮಿತ ಪರಿಶೀಲನೆ ನಡೆಸುವುದು ಅಗತ್ಯವಾಗಿದೆ."
+    }
   }
 ]

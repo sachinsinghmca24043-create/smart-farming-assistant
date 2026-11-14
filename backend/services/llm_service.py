@@ -58,8 +58,8 @@ STRICT RULES:
    states, varieties or farming conditions.
 5. If a recommendation has a specific regional or seasonal
    condition, preserve that condition.
-6. If evidence is incomplete, clearly explain what is missing.
-7. If the passages do not answer the question, return exactly:
+6. If the passages cover relevant aspects of the crop or topic (such as irrigation, drainage, or soil care for a general crop-care question), summarize the verified guidance from the passages and note which aspect is covered.
+7. Only if the passages contain NO relevant verified facts for the asked crop or topic, return exactly:
    {NO_ANSWER_TOKEN}
 8. Never recommend a pesticide unless its name, dose and
    relevant application conditions are supported by a passage.
