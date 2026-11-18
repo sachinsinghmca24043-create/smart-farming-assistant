@@ -383,7 +383,6 @@ async def get_mandi_prices(
         )
         if snapshot is not None:
             logger.warning("Live mandi API unreachable (%s); serving snapshot.", exc)
-            _cache_set(cache_key, snapshot)
             return snapshot
         raise
 
@@ -415,10 +414,8 @@ async def _fetch_prices(
     if clean_district:
         primary_filters["district"] = _api_case(clean_district)
 
-    transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0", retries=2)
     async with httpx.AsyncClient(
         timeout=httpx.Timeout(20.0, connect=8.0),
-        transport=transport,
         verify=False,
     ) as client:
         matches, partial = await _scan(
