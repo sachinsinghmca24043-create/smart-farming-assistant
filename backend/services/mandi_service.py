@@ -17,10 +17,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-
-# The data.gov.in API key travels in the query string, and httpx logs full
-# request URLs at INFO level. Keep that logger quiet so the key never lands
-# in log files.
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 MANDI_API_URL = os.getenv(
@@ -36,56 +32,128 @@ HEADERS = {
 # --- Tunables ---------------------------------------------------------------
 BATCH_SIZE = 100
 MAX_RECORDS_TO_SCAN = 2000
-REQUEST_TIMEOUT = httpx.Timeout(12.0, connect=5.0)
-OVERALL_TIMEOUT_SECONDS = 30.0   # total time budget across all pages/retries
-RETRY_ATTEMPTS = 2               # extra tries for timeouts / 429 / 5xx
+OVERALL_TIMEOUT_SECONDS = 30.0
+RETRY_ATTEMPTS = 2
 RETRY_BACKOFF_SECONDS = 1.0
 STALE_AFTER_DAYS = 3
 
-CACHE_TTL_SECONDS = 3600         # successful results with data
-EMPTY_CACHE_TTL_SECONDS = 300    # "no records found" results expire sooner
-CACHE_MAX_ENTRIES = 256
+CACHE_TTL_SECONDS = 3600
+EMPTY_CACHE_TTL_SECONDS = 300
+CACHE_MAX_ENTRIES = 512
 
-# India Standard Time (the API's arrival dates are Indian calendar dates).
 IST = timezone(timedelta(hours=5, minutes=30))
 
-# Common crop names -> names AGMARKNET actually uses.
-COMMODITY_ALIASES: dict[str, list[str]] = {
-    "rice": ["rice", "paddy(dhan)(common)"],
-    "paddy": ["paddy(dhan)(common)", "rice"],
-    "soybean": ["soyabean", "soyabeans", "soybean"],
-    "soyabean": ["soyabean", "soyabeans", "soybean"],
-    "maize": ["maize"],
-    "corn": ["maize"],
+# Canonical farmer input (English + common Hindi) -> exact AGMARKNET commodity names
+# Ordered by most common APMC arrival name first!
+COMMODITY_API_CANDIDATES: dict[str, list[str]] = {
+    "rice": ["Paddy(Dhan)(Common)", "Rice", "Paddy(Dhan)(Basmati)"],
+    "chawal": ["Paddy(Dhan)(Common)", "Rice", "Paddy(Dhan)(Basmati)"],
+    "paddy": ["Paddy(Dhan)(Common)", "Paddy(Dhan)(Basmati)", "Rice"],
+    "dhan": ["Paddy(Dhan)(Common)", "Paddy(Dhan)(Basmati)"],
+    "wheat": ["Wheat"],
+    "gehu": ["Wheat"],
+    "gehun": ["Wheat"],
+    "maize": ["Maize"],
+    "corn": ["Maize"],
+    "makka": ["Maize"],
+    "bajra": ["Bajra(Pearl Millet/Cumbu)"],
+    "pearl millet": ["Bajra(Pearl Millet/Cumbu)"],
+    "jowar": ["Jowar(Sorghum)"],
+    "sorghum": ["Jowar(Sorghum)"],
+    "ragi": ["Ragi (Finger Millet)"],
+    "barley": ["Barley (Jau)"],
+    "soybean": ["Soyabean"],
+    "soyabean": ["Soyabean"],
+    "mustard": ["Mustard"],
+    "sarson": ["Mustard"],
+    "groundnut": ["Groundnut"],
+    "moongphali": ["Groundnut"],
+    "sunflower": ["Sunflower"],
+    "cotton": ["Cotton"],
+    "kapas": ["Cotton"],
+    "sugarcane": ["Sugarcane"],
+    "ganna": ["Sugarcane"],
+    "chana": ["Bengal Gram(Gram)(Whole)", "Kabuli Chana(Chickpea-White)"],
+    "gram": ["Bengal Gram(Gram)(Whole)"],
+    "chickpea": ["Bengal Gram(Gram)(Whole)", "Kabuli Chana(Chickpea-White)"],
+    "tur": ["Arhar (Tur/Red Gram)(Whole)"],
+    "arhar": ["Arhar (Tur/Red Gram)(Whole)"],
+    "pigeon pea": ["Arhar (Tur/Red Gram)(Whole)"],
+    "moong": ["Green Gram (Moong)(Whole)"],
+    "green gram": ["Green Gram (Moong)(Whole)"],
+    "urad": ["Black Gram (Urd Beans)(Whole)"],
+    "black gram": ["Black Gram (Urd Beans)(Whole)"],
+    "masoor": ["Lentil (Masur)(Whole)"],
+    "lentil": ["Lentil (Masur)(Whole)"],
+    "potato": ["Potato"],
+    "aloo": ["Potato"],
+    "onion": ["Onion"],
+    "pyaz": ["Onion"],
+    "tomato": ["Tomato"],
+    "tamatar": ["Tomato"],
+    "brinjal": ["Brinjal"],
+    "baingan": ["Brinjal"],
+    "eggplant": ["Brinjal"],
+    "okra": ["Bhindi(Ladies Finger)"],
+    "bhindi": ["Bhindi(Ladies Finger)"],
+    "ladies finger": ["Bhindi(Ladies Finger)"],
+    "cabbage": ["Cabbage"],
+    "cauliflower": ["Cauliflower"],
+    "gobhi": ["Cauliflower", "Cabbage"],
+    "carrot": ["Carrot"],
+    "gajar": ["Carrot"],
+    "chilli": ["Green Chilli", "Dry Chillies"],
+    "mirchi": ["Green Chilli", "Dry Chillies"],
+    "garlic": ["Garlic"],
+    "lahsun": ["Garlic"],
+    "ginger": ["Ginger(Green)", "Ginger(Dry)"],
+    "adrak": ["Ginger(Green)", "Ginger(Dry)"],
+    "turmeric": ["Turmeric"],
+    "haldi": ["Turmeric"],
+    "coriander": ["Coriander(Leaves)", "Corriander seed"],
+    "dhaniya": ["Coriander(Leaves)", "Corriander seed"],
+    "banana": ["Banana", "Banana - Green"],
+    "kela": ["Banana"],
+    "mango": ["Mango", "Mango (Raw-Ripe)"],
+    "aam": ["Mango"],
+    "apple": ["Apple"],
+    "seb": ["Apple"],
+    "pomegranate": ["Pomegranate"],
+    "anar": ["Pomegranate"],
+    "grapes": ["Grapes"],
+    "angoor": ["Grapes"],
+    "orange": ["Orange"],
+    "santra": ["Orange"],
+    "lemon": ["Lemon", "Lime"],
+    "nimbu": ["Lemon", "Lime"],
+    "coconut": ["Coconut", "Tender Coconut"],
+    "nariyal": ["Coconut", "Tender Coconut"],
 }
-# Exact spelling to send as a server-side filter (the API is case-sensitive).
-COMMODITY_API_NAMES: dict[str, str] = {
-    "rice": "Rice",
-    "paddy": "Paddy(Dhan)(Common)",
-    "soybean": "Soyabean",
-    "soyabean": "Soyabean",
-    "maize": "Maize",
-    "corn": "Maize",
+
+# Build lowercase matching sets from COMMODITY_API_CANDIDATES
+COMMODITY_ALIASES: dict[str, list[str]] = {
+    k: [c.casefold() for c in v] for k, v in COMMODITY_API_CANDIDATES.items()
 }
 
 _DATE_FORMATS = ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y")
-
-# key -> (timestamp, result); OrderedDict lets us evict the oldest entry.
 _CACHE: OrderedDict[tuple, tuple[float, dict[str, Any]]] = OrderedDict()
+
+SNAPSHOT_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "data", "mandi_snapshot.json"
+)
 
 
 # --------------------------------------------------------------------------
 # Helpers
 # --------------------------------------------------------------------------
 def _field(record: dict[str, Any], name: str) -> str:
-    """Safely read a record field as a stripped, casefolded string."""
     return str(record.get(name) or "").strip().casefold()
 
 
 def _api_case(value: str) -> str:
-    """Names that already have capitals ("NCT of Delhi", "Jammu and Kashmir")
-    are sent as typed; plain lowercase input is title-cased."""
-    return value if any(ch.isupper() for ch in value) else value.title()
+    """Preserve mixed-case names ('NCT of Delhi', 'Jammu and Kashmir'); title-case plain inputs."""
+    cleaned = value.strip()
+    return cleaned if any(ch.isupper() for ch in cleaned) else cleaned.title()
 
 
 def _parse_date(raw: Any) -> date | None:
@@ -99,8 +167,16 @@ def _parse_date(raw: Any) -> date | None:
     return None
 
 
+def _api_candidates(commodity: str) -> list[str]:
+    """Return ordered exact AGMARKNET commodity names to query server-side."""
+    key = commodity.strip().casefold()
+    if key in COMMODITY_API_CANDIDATES:
+        return COMMODITY_API_CANDIDATES[key]
+    return [_api_case(commodity)]
+
+
 def _accepted_names(commodity: str) -> set[str]:
-    key = commodity.casefold()
+    key = commodity.strip().casefold()
     return {key, *COMMODITY_ALIASES.get(key, [])}
 
 
@@ -109,7 +185,6 @@ def _is_exact(name: str, accepted: set[str]) -> bool:
 
 
 def _commodity_matches(name: str, accepted: set[str]) -> bool:
-    """Exact name, or the accepted name as a whole word (e.g. 'Onion Green')."""
     if not name:
         return False
     if name in accepted:
@@ -118,6 +193,32 @@ def _commodity_matches(name: str, accepted: set[str]) -> bool:
         re.search(r"(?<!\w)" + re.escape(alias) + r"(?!\w)", name)
         for alias in accepted
     )
+
+
+def _dedupe_and_sort(records: list[dict[str, Any]], accepted: set[str], limit: int) -> list[dict[str, Any]]:
+    seen: set[tuple[str, str, str, str, str]] = set()
+    unique: list[dict[str, Any]] = []
+    for r in records:
+        sig = (
+            _field(r, "state"),
+            _field(r, "district"),
+            _field(r, "market"),
+            _field(r, "commodity"),
+            str(r.get("arrival_date") or ""),
+        )
+        if sig not in seen:
+            seen.add(sig)
+            unique.append(r)
+
+    exact = [r for r in unique if _is_exact(_field(r, "commodity"), accepted)]
+    if exact:
+        unique = exact
+
+    unique.sort(
+        key=lambda r: _parse_date(r.get("arrival_date")) or date.min,
+        reverse=True,
+    )
+    return unique[:limit]
 
 
 def _cache_get(key: tuple) -> tuple[float, dict[str, Any]] | None:
@@ -143,7 +244,6 @@ def _cache_is_fresh(cached_at: float, result: dict[str, Any]) -> bool:
 # HTTP layer
 # --------------------------------------------------------------------------
 async def _get_json(client: httpx.AsyncClient, params: dict[str, str]) -> dict:
-    """GET one page with retries. Errors never include the URL (it has the key)."""
     last_error = "Could not connect to the official mandi API."
 
     for attempt in range(RETRY_ATTEMPTS + 1):
@@ -168,7 +268,7 @@ async def _get_json(client: httpx.AsyncClient, params: dict[str, str]) -> dict:
                 message = "The mandi API rate limit was reached. Please try again later."
             else:
                 message = f"Mandi API returned HTTP error status: {status}"
-            raise RuntimeError(message) from None  # `from None`: hide URL/key
+            raise RuntimeError(message) from None
         except httpx.RequestError as exc:
             logger.error("Mandi API network/TLS error: %r", exc)
             last_error = "Could not connect to the official mandi API."
@@ -195,7 +295,6 @@ async def _scan(
     requested_limit: int,
     deadline: float,
 ) -> tuple[list[dict[str, Any]], bool]:
-    """Page through the API and keep records matching all requested filters."""
     matches: list[dict[str, Any]] = []
     offset = 0
     reported_total: int | None = None
@@ -227,7 +326,6 @@ async def _scan(
             except (TypeError, ValueError):
                 reported_total = None
 
-        # Client-side checks stay as a safety net (and handle case differences).
         for record in records:
             if not isinstance(record, dict):
                 continue
@@ -251,26 +349,22 @@ async def _scan(
     return matches, partial
 
 
-
-SNAPSHOT_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)), "data", "mandi_snapshot.json"
-)
-
-
-def _load_snapshot_prices(
+# --------------------------------------------------------------------------
+# Snapshot fallback (works offline or when a state/district has 0 live rows)
+# --------------------------------------------------------------------------
+def _query_snapshot_records(
     clean_commodity: str,
     clean_state: str | None,
     clean_district: str | None,
-    requested_limit: int,
-) -> dict[str, Any] | None:
+) -> list[dict[str, Any]]:
     if not os.path.exists(SNAPSHOT_PATH):
-        return None
+        return []
     try:
         with open(SNAPSHOT_PATH, "r", encoding="utf-8") as f:
             records = json.load(f)
     except Exception as exc:
         logger.warning("Failed to read mandi snapshot: %s", exc)
-        return None
+        return []
 
     accepted = _accepted_names(clean_commodity)
     matches = []
@@ -284,20 +378,34 @@ def _load_snapshot_prices(
         if not _commodity_matches(_field(record, "commodity"), accepted):
             continue
         matches.append(record)
+    return matches
 
-    exact = [r for r in matches if _is_exact(_field(r, "commodity"), accepted)]
-    if exact:
-        matches = exact
 
-    matches.sort(
-        key=lambda r: _parse_date(r.get("arrival_date")) or date.min,
-        reverse=True,
-    )
-    matches = matches[:requested_limit]
+def _load_snapshot_prices(
+    clean_commodity: str,
+    clean_state: str | None,
+    clean_district: str | None,
+    requested_limit: int,
+) -> dict[str, Any] | None:
+    if not os.path.exists(SNAPSHOT_PATH):
+        return None
 
-    arrival_dates = [
-        d for d in (_parse_date(r.get("arrival_date")) for r in matches) if d
-    ]
+    accepted = _accepted_names(clean_commodity)
+    scope_note = ""
+
+    # Progressive fallback inside snapshot: District -> State -> National
+    matches = _query_snapshot_records(clean_commodity, clean_state, clean_district)
+    if not matches and clean_district:
+        matches = _query_snapshot_records(clean_commodity, clean_state, None)
+        if matches:
+            scope_note = f"No snapshot rows in {clean_district}; showing {clean_state} mandis. "
+    if not matches and clean_state:
+        matches = _query_snapshot_records(clean_commodity, None, None)
+        if matches:
+            scope_note = f"No snapshot rows in {clean_state}; showing national mandi rates. "
+
+    matches = _dedupe_and_sort(matches, accepted, requested_limit)
+    arrival_dates = [d for d in (_parse_date(r.get("arrival_date")) for r in matches) if d]
     latest = max(arrival_dates) if arrival_dates else None
 
     return {
@@ -313,7 +421,7 @@ def _load_snapshot_prices(
         "cached": True,
         "fetched_at": datetime.now(IST).isoformat(timespec="seconds"),
         "note": (
-            f"Showing {len(matches)} verified AGMARKNET records for {clean_commodity}."
+            f"{scope_note}Showing {len(matches)} verified AGMARKNET records for {clean_commodity}."
             if matches
             else f"No market records found for {clean_commodity}."
         ),
@@ -329,7 +437,7 @@ async def get_mandi_prices(
     district: str | None = None,
     limit: int = 50,
 ) -> dict[str, Any]:
-    """Fetch current mandi prices from AGMARKNET (data.gov.in) with caching."""
+    """Fetch mandi prices from AGMARKNET with alias resolution & progressive fallback."""
     if not isinstance(commodity, str) or not commodity.strip():
         raise ValueError("Commodity cannot be empty.")
 
@@ -348,7 +456,6 @@ async def get_mandi_prices(
     except (TypeError, ValueError):
         requested_limit = 50
 
-    # The key includes the limit, so a small request can't poison a larger one.
     cache_key = (
         clean_commodity.casefold(),
         (clean_state or "").casefold(),
@@ -368,7 +475,6 @@ async def get_mandi_prices(
             api_key, clean_commodity, clean_state, clean_district, requested_limit
         )
     except RuntimeError as exc:
-        # Prefer old data over no data when the government API is down.
         if cached:
             logger.warning("Mandi API failed (%s); serving expired cache.", exc)
             result = copy.deepcopy(cached[1])
@@ -392,6 +498,39 @@ async def get_mandi_prices(
     return out
 
 
+async def _query_candidates_for_scope(
+    client: httpx.AsyncClient,
+    api_key: str,
+    candidates: list[str],
+    accepted: set[str],
+    clean_state: str | None,
+    clean_district: str | None,
+    requested_limit: int,
+    deadline: float,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Query every candidate AGMARKNET commodity name for a given state/district scope."""
+    combined: list[dict[str, Any]] = []
+    any_partial = False
+
+    for candidate in candidates:
+        if time.monotonic() >= deadline or len(combined) >= requested_limit:
+            break
+        filters: dict[str, str] = {"commodity": candidate}
+        if clean_state:
+            filters["state"] = _api_case(clean_state)
+        if clean_district:
+            filters["district"] = _api_case(clean_district)
+
+        rows, partial = await _scan(
+            client, api_key, filters, accepted,
+            clean_state, clean_district, requested_limit, deadline,
+        )
+        combined.extend(rows)
+        any_partial = any_partial or partial
+
+    return combined, any_partial
+
+
 async def _fetch_prices(
     api_key: str,
     clean_commodity: str,
@@ -399,50 +538,72 @@ async def _fetch_prices(
     clean_district: str | None,
     requested_limit: int,
 ) -> dict[str, Any]:
+    candidates = _api_candidates(clean_commodity)
     accepted = _accepted_names(clean_commodity)
     deadline = time.monotonic() + OVERALL_TIMEOUT_SECONDS
-
-    # Ask the API to filter by commodity/state/district so we don't download
-    # thousands of unrelated rows. The API is case-sensitive, hence .title().
-    primary_filters = {
-        "commodity": COMMODITY_API_NAMES.get(
-            clean_commodity.casefold(), clean_commodity.title()
-        )
-    }
-    if clean_state:
-        primary_filters["state"] = _api_case(clean_state)
-    if clean_district:
-        primary_filters["district"] = _api_case(clean_district)
+    fallback_note = ""
 
     async with httpx.AsyncClient(
         timeout=httpx.Timeout(20.0, connect=8.0),
         verify=False,
     ) as client:
-        matches, partial = await _scan(
-            client, api_key, primary_filters, accepted,
+        # Tier 1: Exact requested scope (Commodity aliases + State + District)
+        matches, partial = await _query_candidates_for_scope(
+            client, api_key, candidates, accepted,
             clean_state, clean_district, requested_limit, deadline,
         )
 
-        # If exact-case server filters found nothing, fall back to a wider scan
-        # (state filter only) with case-insensitive matching on our side.
-        if not matches:
-            fallback_filters = {"state": clean_state} if clean_state else {}
-            matches, partial = await _scan(
-                client, api_key, fallback_filters, accepted,
+        # Tier 2: State-wide scan (if exact candidate filter missed a variant or district had 0 arrivals)
+        if not matches and clean_state:
+            state_filters = {"state": _api_case(clean_state)}
+            state_rows, partial = await _scan(
+                client, api_key, state_filters, accepted,
                 clean_state, clean_district, requested_limit, deadline,
             )
+            if state_rows:
+                matches = state_rows
+            elif clean_district:
+                # Expand from District -> Whole State so farmer sees nearest mandis
+                matches, partial = await _query_candidates_for_scope(
+                    client, api_key, candidates, accepted,
+                    clean_state, None, requested_limit, deadline,
+                )
+                if not matches:
+                    matches, partial = await _scan(
+                        client, api_key, state_filters, accepted,
+                        clean_state, None, requested_limit, deadline,
+                    )
+                if matches:
+                    fallback_note = (
+                        f"No live arrivals reported today in {clean_district}; "
+                        f"showing nearest mandis across {clean_state}. "
+                    )
 
-    # Prefer exact commodity names ("Potato") over word matches ("Sweet Potato").
-    exact = [r for r in matches if _is_exact(_field(r, "commodity"), accepted)]
-    if exact:
-        matches = exact
+        # Tier 3: Local snapshot fallback for requested state/district before going national
+        if not matches and (clean_state or clean_district):
+            snap_rows = _query_snapshot_records(clean_commodity, clean_state, clean_district)
+            if not snap_rows and clean_district:
+                snap_rows = _query_snapshot_records(clean_commodity, clean_state, None)
+            if snap_rows:
+                matches = snap_rows
+                fallback_note = (
+                    f"No live arrivals reported today in {clean_state}; "
+                    f"showing latest recorded {clean_commodity} mandi prices. "
+                )
 
-    # Newest first, so truncating to `limit` keeps the freshest records.
-    matches.sort(
-        key=lambda r: _parse_date(r.get("arrival_date")) or date.min,
-        reverse=True,
-    )
-    matches = matches[:requested_limit]
+        # Tier 4: National / All-India mandi fallback (never return 0 records if crop exists)
+        if not matches and clean_state:
+            matches, partial = await _query_candidates_for_scope(
+                client, api_key, candidates, accepted,
+                None, None, min(requested_limit, 25), deadline,
+            )
+            if matches:
+                fallback_note = (
+                    f"{clean_commodity} is not actively traded in {clean_state} mandis today; "
+                    f"showing current rates across major Indian mandis. "
+                )
+
+    matches = _dedupe_and_sort(matches, accepted, requested_limit)
 
     arrival_dates = [
         d for d in (_parse_date(r.get("arrival_date")) for r in matches) if d
@@ -453,7 +614,7 @@ async def _fetch_prices(
     is_stale = latest is None or (today - latest).days > STALE_AFTER_DAYS
 
     if matches:
-        note = "Official AGMARKNET records retrieved successfully."
+        note = fallback_note + "Official AGMARKNET records retrieved successfully."
         if partial:
             note += " The search hit its time limit, so results may be incomplete."
     else:
