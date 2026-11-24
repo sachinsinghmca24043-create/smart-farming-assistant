@@ -1683,20 +1683,22 @@ useEffect(() => {
                 );
               })}
             </nav>
-
-
             <button
-  type="button"
-  onClick={handleLogout}
-  className="mt-3 flex w-full items-center gap-3 rounded-xl px-5 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
->
-  <span>↪</span>
-  Logout
-</button>
+              type="button"
+              onClick={handleLogout}
+              className="mt-3 flex w-full shrink-0 items-center gap-3 rounded-xl px-5 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+            >
+              <span>↪</span>
+              Logout
+            </button>
 
-            <div className="mx-3 mt-5 hidden border-t border-slate-200 lg:block" />
+            <div className="mx-3 mt-4 hidden shrink-0 border-t border-slate-200 lg:block" />
 
-            <div className={`mt-3 flex min-h-0 flex-col lg:flex-1 ${showHistory ? "lg:min-h-[320px]" : ""} ${chatActive && !toolView ? "max-lg:hidden" : ""}`}>
+            <div
+              className={`mt-3 flex min-h-0 shrink-0 flex-col ${
+                showHistory ? "lg:min-h-[260px] lg:flex-1" : ""
+              } ${chatActive && !toolView ? "max-lg:hidden" : ""}`}
+            >
               <div className="flex items-center">
                 <button
                   type="button"
@@ -1758,7 +1760,7 @@ useEffect(() => {
                     </p>
                   )}
 
-                  <div className="mt-2 max-h-64 min-h-0 space-y-1 overflow-y-auto lg:max-h-none lg:min-h-[180px] lg:flex-1">
+                  <div className="mt-2 max-h-64 min-h-0 space-y-1 overflow-y-auto lg:max-h-none lg:min-h-[160px] lg:flex-1">
                     {filteredHistory.map((item) => (
                       <div
                         key={item.session_id}
@@ -1799,11 +1801,11 @@ useEffect(() => {
               )}
             </div>
 
-            <div className={`side-foot mt-4 hidden pb-4 lg:mt-auto lg:block ${showHistory ? "lg:pb-4" : "lg:pb-40"}`}>
-              <p className="nav-row flex items-center gap-4 px-5 py-3.5 text-[15.5px] text-slate-800">
+            <div className="side-foot mt-auto hidden shrink-0 pt-3 pb-6 lg:block">
+              <p className="nav-row flex items-center gap-4 px-5 py-3 text-[15.5px] text-slate-800">
                 <Icon name="settingsS" className="h-6 w-6 text-slate-600" /> Settings
               </p>
-              <p className="nav-row flex items-center gap-4 px-5 py-3.5 text-[15.5px] text-slate-800">
+              <p className="nav-row flex items-center gap-4 px-5 py-3 text-[15.5px] text-slate-800">
                 <Icon name="helpS" className="h-6 w-6 text-slate-600" /> Help
               </p>
             </div>
