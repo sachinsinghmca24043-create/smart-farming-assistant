@@ -9,6 +9,7 @@ import type { FormEvent, ReactNode } from "react";
 
 const SESSION_STORAGE_KEY = "smart-farming-session";
 const OFFLINE_CHAT_CACHE_KEY = "smart-farming-last-conversation";
+const THEME_STORAGE_KEY = "smart-farming-theme";
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_.:-]{8,128}$/;
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
@@ -215,8 +216,7 @@ async function apiFetch(
   init: RequestInit = {},
   timeoutMs: number = DEFAULT_TIMEOUT_MS
 ): Promise<Response> {
-  // Detect offline status before making an API request.
-  if (typeof navigator !== "undefined" && !navigator.onLine){
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
     throw new Error(
       "You are currently offline. Please check your internet connection and try again."
     );
@@ -226,10 +226,10 @@ async function apiFetch(
 
   try {
     return await fetch(`/api/farmer/backend${path}`, {
-  ...init,
-  credentials: "same-origin",
-  signal: controller.signal,
-});
+      ...init,
+      credentials: "same-origin",
+      signal: controller.signal,
+    });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error("The request took too long. Please try again.");
@@ -243,7 +243,6 @@ async function apiFetch(
     throw new Error(
       "Cannot reach the server. Please check your connection and that the backend is running."
     );
-   
   } finally {
     clearTimeout(timer);
   }
@@ -485,7 +484,7 @@ function MarketTable({ records }: { records: MarketPriceRecord[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
-        <thead className="bg-green-50">
+        <thead className="bg-green-50 text-slate-800">
           <tr>
             <th className="p-3">Market</th>
             <th className="p-3">District</th>
@@ -621,7 +620,6 @@ const ICONS = {
   info: (<><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="16" y2="12" /><line x1="12" x2="12.01" y1="8" y2="8" /></>),
   mic: (<><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></>),
   stop: (<rect x="6" y="6" width="12" height="12" rx="2" />),
-  clip: (<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />),
   up: (<><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></>),
   globe: (<><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></>),
   bell: (<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></>),
@@ -630,6 +628,9 @@ const ICONS = {
   plus: (<><path d="M5 12h14" /><path d="M12 5v14" /></>),
   chevron: (<polyline points="6 9 12 15 18 9" />),
   chat: (<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />),
+  headphones: (<><path d="M3 18v-6a9 9 0 0 1 18 0v6" /><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" /></>),
+  menu: (<><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="18" y2="18" /></>),
+  close: (<><line x1="18" x2="6" y1="6" y2="18" /><line x1="6" x2="18" y1="6" y2="18" /></>),
 };
 
 const ICONS_SOLID = {
@@ -697,13 +698,12 @@ function Logo({ className = "h-12 w-12" }: { className?: string }) {
 // -------------------------------------------------------------------
 
 export default function Home() {
-  // ----- chat state -----
-  const [authChecking, setAuthChecking] = useState(true);
-  const [mode, setMode] = useState<"text" | "audio">("text");
+  // ----- chat & UI state -----
+  const [darkMode, setDarkMode] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [text, setText] = useState("");
   const [language, setLanguage] = useState<LanguageChoice>("auto");
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [audioInputKey, setAudioInputKey] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -713,9 +713,8 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [activeMessages, setActiveMessages] = useState<HistoryMessage[]>([]);
   const [activeNav, setActiveNav] = useState("Home");
-  const [showHistory, setShowHistory] = useState(false);
   const [feedbackRatings, setFeedbackRatings] = useState<
-  Record<number, "up" | "down">
+    Record<number, "up" | "down">
   >({});
   const [feedbackLoading, setFeedbackLoading] = useState<number | null>(null);
   const [feedbackError, setFeedbackError] = useState("");
@@ -757,12 +756,30 @@ export default function Home() {
   const lastLanguageRef = useRef<LangCode>("en");
   const conversationRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
- 
-
 
   useEffect(() => {
-  let active = true;
+    try {
+      if (localStorage.getItem(THEME_STORAGE_KEY) === "dark") {
+        setDarkMode(true);
+      }
+    } catch {
+      // Storage unavailable
+    }
+  }, []);
 
+  const toggleDarkMode = useCallback(() => {
+    setDarkMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, next ? "dark" : "light");
+      } catch {
+        // Storage unavailable
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
   async function checkFarmerAuth() {
     try {
       const response = await fetch("/api/farmer/me", {
@@ -773,27 +790,14 @@ export default function Home() {
 
       if (!response.ok) {
         window.location.replace("/farmer/login");
-        return;
-      }
-
-      if (active) {
-        setAuthChecking(false);
       }
     } catch {
-      if (active) {
-        window.location.replace("/farmer/login");
-      }
+      window.location.replace("/farmer/login");
     }
   }
 
   void checkFarmerAuth();
-
-  return () => {
-    active = false;
-  };
 }, []);
-
-
 
   useEffect(() => {
     languageRef.current = language;
@@ -896,7 +900,6 @@ export default function Home() {
     void loadHistory();
   }, [applySession, loadHistory, loadSession]);
 
-
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
@@ -914,37 +917,34 @@ export default function Home() {
   useEffect(() => {
     if (navigator.onLine) return;
 
-  try {
-    const cached = localStorage.getItem(OFFLINE_CHAT_CACHE_KEY);
+    try {
+      const cached = localStorage.getItem(OFFLINE_CHAT_CACHE_KEY);
 
-    if (cached) {
-      const messages = JSON.parse(cached);
+      if (cached) {
+        const messages = JSON.parse(cached);
 
-      if (Array.isArray(messages) && messages.length > 0) {
-        setActiveMessages(messages);
+        if (Array.isArray(messages) && messages.length > 0) {
+          setActiveMessages(messages);
+        }
       }
+    } catch {
+      console.warn("Unable to restore the offline conversation.");
     }
-  } catch {
-    console.warn("Unable to restore the offline conversation.");
-  }
-}, []);
+  }, []);
 
-// Keep the latest conversation available offline.
-useEffect(() => {
-  if (activeMessages.length === 0) return;
+  // Keep the latest conversation available offline.
+  useEffect(() => {
+    if (activeMessages.length === 0) return;
 
-  try {
-    localStorage.setItem(
-      OFFLINE_CHAT_CACHE_KEY,
-      JSON.stringify(activeMessages)
-    );
-  } catch {
-    console.warn("Unable to save the offline conversation.");
-  }
-}, [activeMessages]);
-
-
-
+    try {
+      localStorage.setItem(
+        OFFLINE_CHAT_CACHE_KEY,
+        JSON.stringify(activeMessages)
+      );
+    } catch {
+      console.warn("Unable to save the offline conversation.");
+    }
+  }, [activeMessages]);
 
   useEffect(() => {
     return () => {
@@ -1050,45 +1050,44 @@ useEffect(() => {
     }
   }
 
-
   async function submitFeedback(
-  messageId: number,
-  rating: "up" | "down"
-) {
-  if (!sessionId || feedbackLoading !== null) return;
+    messageId: number,
+    rating: "up" | "down"
+  ) {
+    if (!sessionId || feedbackLoading !== null) return;
 
-  setFeedbackLoading(messageId);
-  setFeedbackError("");
+    setFeedbackLoading(messageId);
+    setFeedbackError("");
 
-  try {
-    const response = await apiFetch("/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_id: sessionId,
-        message_id: messageId,
-        rating,
-      }),
-    });
+    try {
+      const response = await apiFetch("/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          message_id: messageId,
+          rating,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(
-        await readError(response, "Unable to submit feedback.")
+      if (!response.ok) {
+        throw new Error(
+          await readError(response, "Unable to submit feedback.")
+        );
+      }
+
+      setFeedbackRatings((old) => ({
+        ...old,
+        [messageId]: rating,
+      }));
+    } catch (err) {
+      setFeedbackError(
+        errMsg(err, "Unable to submit feedback.")
       );
+    } finally {
+      setFeedbackLoading(null);
     }
-
-    setFeedbackRatings((old) => ({
-      ...old,
-      [messageId]: rating,
-    }));
-  } catch (err) {
-    setFeedbackError(
-      errMsg(err, "Unable to submit feedback.")
-    );
-  } finally {
-    setFeedbackLoading(null);
   }
-}
 
   function chooseLanguage(detected: unknown): LangCode {
     const selected = languageRef.current;
@@ -1261,28 +1260,6 @@ useEffect(() => {
     }
   }
 
-  function onAudioFileChange(file: File | null) {
-    if (file && file.size > MAX_AUDIO_BYTES) {
-      setError("That file is too large (maximum 10 MB).");
-      setAudioFile(null);
-      setAudioInputKey((key) => key + 1);
-      return;
-    }
-    setError("");
-    setAudioFile(file);
-  }
-
-  async function analyzeAudio(event: FormEvent) {
-    event.preventDefault();
-    if (!audioFile || loading) return;
-
-    const ok = await transcribeAndSend(audioFile, audioFile.name);
-    if (ok) {
-      setAudioFile(null);
-      setAudioInputKey((key) => key + 1);
-    }
-  }
-
   function toggleSpeech() {
     if (isSpeaking) {
       stopSpeaking();
@@ -1350,44 +1327,41 @@ useEffect(() => {
     }
   }
 
-
   async function handleLogout() {
-  const confirmed = window.confirm("Are you sure you want to logout?");
-  if (!confirmed) return;
+    const confirmed = window.confirm("Are you sure you want to logout?");
+    if (!confirmed) return;
 
-  try {
-    await fetch("/api/farmer/logout", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-  } finally {
-    // Clear farmer-specific local conversation data.
-    localStorage.removeItem(SESSION_STORAGE_KEY);
-    localStorage.removeItem(OFFLINE_CHAT_CACHE_KEY);
+    try {
+      await fetch("/api/farmer/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } finally {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      localStorage.removeItem(OFFLINE_CHAT_CACHE_KEY);
 
-    window.location.replace("/farmer/login");
+      window.location.replace("/farmer/login");
+    }
   }
-}
 
   function startNewChat() {
-  requestIdRef.current++;
-  stopSpeaking();
-  applySession(null);
+    requestIdRef.current++;
+    stopSpeaking();
+    applySession(null);
 
-  // Clear the previous offline conversation.
-  try {
-    localStorage.removeItem(OFFLINE_CHAT_CACHE_KEY);
-  } catch {
-    console.warn("Unable to clear the offline conversation.");
+    try {
+      localStorage.removeItem(OFFLINE_CHAT_CACHE_KEY);
+    } catch {
+      console.warn("Unable to clear the offline conversation.");
+    }
+
+    setActiveMessages([]);
+    setResult(null);
+    setText("");
+    setError("");
+    setNotice("");
+    setLoading(false);
   }
-
-  setActiveMessages([]);
-  setResult(null);
-  setText("");
-  setError("");
-  setNotice("");
-  setLoading(false);
-}
 
   async function openPreviousChat(id: string) {
     requestIdRef.current++;
@@ -1563,21 +1537,10 @@ useEffect(() => {
   }
 
   function fillPrompt(prompt: string) {
-    setMode("text");
     setActiveNav("Home");
     setText(prompt);
     requestAnimationFrame(() => inputRef.current?.focus());
   }
-
-  const navItems: { label: string; icon: IconName; onClick: () => void }[] = [
-    { label: "Home", icon: "homeS", onClick: () => {} },
-    { label: "Crops", icon: "cropS", onClick: () => fillPrompt("Best practices for crop care") },
-    { label: "Pest & Disease", icon: "bugS", onClick: () => fillPrompt("How do I manage pests in my crop?") },
-    { label: "Weather", icon: "cloudS", onClick: () => {} },
-    { label: "Market Prices", icon: "chartS", onClick: () => {} },
-    { label: "Schemes", icon: "landmarkS", onClick: () => {} },
-    { label: "Farming Tips", icon: "bulbS", onClick: () => {} },
-  ];
 
   const toolView = ["Weather", "Market Prices", "Schemes", "Farming Tips"].includes(activeNav);
 
@@ -1600,19 +1563,14 @@ useEffect(() => {
   const chatActive = activeMessages.length > 0 || loading;
   const lastAssistantIndex = activeMessages.map((item) => item.role).lastIndexOf("assistant");
 
-  if (authChecking) {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-green-50">
-      <p className="text-lg font-medium text-green-800">
-        Verifying your account...
-      </p>
-    </main>
-  );
-}
-
+  
 
   return (
-    <div className="h-dvh overflow-hidden bg-[#f6faf6] text-slate-800">
+    <div
+      className={`h-dvh overflow-hidden transition-colors ${
+        darkMode ? "bg-slate-950 text-slate-100" : "bg-[#f6faf6] text-slate-800"
+      }`}
+    >
       {isOffline && (
         <div
           role="status"
@@ -1622,192 +1580,274 @@ useEffect(() => {
         </div>
       )}
       <div className="flex h-full flex-col lg:flex-row">
-        {/* ============ Sidebar ============ */}
-        <aside className="relative w-full shrink-0 overflow-hidden border-b border-slate-100 bg-white/90 lg:h-full lg:w-[265px] lg:border-b-0 lg:border-r">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/leaf-bottom.png"
-            alt=""
-            className={`side-leaf pointer-events-none absolute bottom-0 left-0 hidden w-full transition-opacity ${
-              showHistory ? "lg:opacity-0" : "lg:block"
-            }`}
+        {/* Mobile Backdrop */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px] lg:hidden"
           />
+        )}
 
-          <div className="relative z-10 flex min-h-0 flex-col px-3 pb-3 pt-4 lg:h-full lg:overflow-y-auto lg:px-4 lg:pb-0 lg:pt-6">
-            <div className="flex items-center gap-2.5 px-0.5">
-              <span className="shrink-0 text-green-600">
-                <Logo className="h-12 w-12" />
-              </span>
-              <div>
-                <p className="text-[19px] font-semibold leading-[1.15] text-slate-900">
-                  Smart Farming
-                  <br />
-                  Assistant
-                </p>
-                <p className="mt-1 whitespace-nowrap text-[12px] text-slate-500">AI guidance for Indian farmers</p>
-              </div>
-
-              {chatActive && !toolView && (
-                <button
-                  type="button"
-                  onClick={startNewChat}
-                  className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm lg:hidden"
-                >
-                  <Icon name="plus" className="h-4 w-4" /> New chat
-                </button>
-              )}
-            </div>
-
-            <nav aria-label="Sections" className={`-mx-1 mt-3 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:mt-7 lg:flex-col lg:gap-[3px] lg:overflow-visible lg:px-0 lg:pb-0 ${chatActive && !toolView ? "max-lg:hidden" : ""}`}>
-              {navItems.map((item) => {
-                const active = activeNav === item.label;
-                return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => {
-                      setActiveNav(item.label);
-                      item.onClick();
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    aria-current={active ? "page" : undefined}
-                    className={`nav-row flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-left text-[15.5px] transition-colors lg:gap-4 lg:px-5 lg:py-3.5 ${
-                      active
-                        ? "bg-[#e6f4e8] font-medium text-green-800"
-                        : "text-slate-800 hover:bg-slate-50"
+        {/* ============ Slide-Over / Desktop Sidebar ============ */}
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 flex w-[285px] max-w-[85vw] shrink-0 flex-col border-r transition-transform duration-300 ease-in-out lg:static lg:z-auto lg:h-full lg:w-[290px] lg:max-w-none lg:translate-x-0 ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } ${
+            darkMode
+              ? "border-slate-800 bg-slate-900 text-slate-100"
+              : "border-[#e2e8df] bg-[#f4f7f2] text-slate-800"
+          }`}
+        >
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-5">
+            {/* Brand Header + Mobile Close Button */}
+            <div className="flex items-center justify-between gap-2 px-1">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#1e4d35] text-white shadow-sm">
+                  <Icon name="sprout" className="h-6 w-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`truncate text-[18px] font-bold leading-tight ${
+                      darkMode ? "text-white" : "text-[#1e4d35]"
                     }`}
                   >
-                    <Icon name={item.icon} className={`h-6 w-6 ${active ? "text-green-700" : "text-slate-500"}`} />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="mt-3 flex w-full shrink-0 items-center gap-3 rounded-xl px-5 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
-            >
-              <span>↪</span>
-              Logout
-            </button>
-
-            <div className="mx-3 mt-4 hidden shrink-0 border-t border-slate-200 lg:block" />
-
-            <div
-              className={`mt-3 flex min-h-0 shrink-0 flex-col ${
-                showHistory ? "lg:min-h-[260px] lg:flex-1" : ""
-              } ${chatActive && !toolView ? "max-lg:hidden" : ""}`}
-            >
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => setShowHistory((open) => !open)}
-                  aria-expanded={showHistory}
-                  className="nav-row flex flex-1 items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left text-[15.5px] text-slate-800 hover:bg-slate-50 lg:gap-4 lg:px-5 lg:py-3.5"
-                >
-                  <Icon name="clock" className="h-6 w-6 text-slate-500" />
-                  Recent Chats
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveNav("Home");
-                    startNewChat();
-                  }}
-                  title="New chat"
-                  aria-label="New chat"
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
-                >
-                  <Icon name="plus" className="h-5 w-5" />
-                </button>
+                    Smart Farming
+                  </p>
+                  <p
+                    className={`truncate text-[12.5px] ${
+                      darkMode ? "text-slate-400" : "text-slate-600"
+                    }`}
+                  >
+                    Your farming companion
+                  </p>
+                </div>
               </div>
 
-              {showHistory && (
-                <div className="mt-1 flex min-h-0 flex-col rounded-xl bg-white/80 p-2 lg:flex-1">
-                  <div className="mb-2 flex items-center gap-2">
-                    <input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search conversations..."
-                      aria-label="Search conversations"
-                      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400"
-                    />
-                    {history.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={deleteAllChats}
-                        className="shrink-0 text-xs text-red-500 hover:text-red-700"
-                      >
-                        Clear all
-                      </button>
-                    )}
-                  </div>
-
-                  {historyLoading && (
-                    <p className="text-sm text-slate-500">Loading previous chats...</p>
-                  )}
-
-                  {historyError && (
-                    <p role="alert" className="text-sm text-red-500">
-                      {historyError}
-                    </p>
-                  )}
-
-                  {!historyLoading && !historyError && history.length === 0 && (
-                    <p className="text-sm text-slate-500">
-                      No previous conversations yet.
-                    </p>
-                  )}
-
-                  <div className="mt-2 max-h-64 min-h-0 space-y-1 overflow-y-auto lg:max-h-none lg:min-h-[160px] lg:flex-1">
-                    {filteredHistory.map((item) => (
-                      <div
-                        key={item.session_id}
-                        className={`mb-1 flex items-center gap-1 rounded-lg hover:bg-slate-100 ${
-                          sessionId === item.session_id ? "bg-green-50" : ""
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveNav("Home");
-                            void openPreviousChat(item.session_id);
-                          }}
-                          className="min-w-0 flex-1 px-3 py-3 text-left"
-                        >
-                          <span className="line-clamp-2 block text-sm font-medium">
-                            {item.first_question || "Conversation"}
-                          </span>
-
-                          <span className="mt-1 block text-xs text-slate-500">
-                            {formatTime(item.last_message_at)}
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          title="Delete conversation"
-                          aria-label={`Delete conversation: ${item.first_question || "Conversation"}`}
-                          onClick={() => deletePreviousChat(item.session_id)}
-                          className="mr-2 rounded-lg px-3 py-2 text-red-500 hover:bg-red-50"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                aria-label="Close sidebar"
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl lg:hidden ${
+                  darkMode
+                    ? "text-slate-300 hover:bg-slate-800"
+                    : "text-slate-600 hover:bg-[#e4ece0]"
+                }`}
+              >
+                <Icon name="close" className="h-5 w-5" />
+              </button>
             </div>
 
-            <div className="side-foot mt-auto hidden shrink-0 pt-3 pb-6 lg:block">
-              <p className="nav-row flex items-center gap-4 px-5 py-3 text-[15.5px] text-slate-800">
-                <Icon name="settingsS" className="h-6 w-6 text-slate-600" /> Settings
-              </p>
-              <p className="nav-row flex items-center gap-4 px-5 py-3 text-[15.5px] text-slate-800">
-                <Icon name="helpS" className="h-6 w-6 text-slate-600" /> Help
-              </p>
+            {/* + New conversation button */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveNav("Home");
+                startNewChat();
+                setSidebarOpen(false);
+              }}
+              className={`mt-5 flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-[15px] font-medium transition-colors ${
+                darkMode
+                  ? "border-slate-700 bg-slate-800/80 text-slate-100 hover:bg-slate-800"
+                  : "border-[#cbd7c6] bg-[#eef3eb] text-slate-800 hover:bg-[#e4ece0]"
+              }`}
+            >
+              <Icon name="plus" className="h-5 w-5 opacity-80" />
+              <span>New conversation</span>
+            </button>
+
+            {/* Your conversations list */}
+            <div className="mt-6 flex min-h-0 flex-1 flex-col">
+              <div className="mb-2 flex items-center justify-between px-1">
+                <p
+                  className={`text-[13.5px] font-semibold ${
+                    darkMode ? "text-slate-400" : "text-slate-600"
+                  }`}
+                >
+                  Your conversations
+                </p>
+                {history.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={deleteAllChats}
+                    className="text-xs text-slate-400 hover:text-red-600"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {history.length > 4 && (
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search conversations..."
+                  aria-label="Search conversations"
+                  className={`mb-2 w-full rounded-xl border px-3 py-1.5 text-sm outline-none ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-800 text-slate-100 placeholder:text-slate-500"
+                      : "border-[#d8e2d4] bg-white/80 text-slate-800 placeholder:text-slate-400"
+                  }`}
+                />
+              )}
+
+              <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+                {historyLoading && (
+                  <p className="px-1 text-sm text-slate-500">Loading previous chats...</p>
+                )}
+
+                {historyError && (
+                  <p role="alert" className="px-1 text-sm text-red-500">
+                    {historyError}
+                  </p>
+                )}
+
+                {!historyLoading && !historyError && filteredHistory.length === 0 && (
+                  <p className="px-1 text-sm text-slate-500">
+                    No conversations yet.
+                  </p>
+                )}
+
+                {filteredHistory.map((item) => {
+                  const isCurrent = sessionId === item.session_id;
+                  return (
+                    <div
+                      key={item.session_id}
+                      className={`group flex items-center justify-between rounded-xl px-2.5 py-2 transition-colors ${
+                        isCurrent
+                          ? darkMode
+                            ? "bg-slate-800 text-white"
+                            : "bg-[#e3ece0] font-medium text-slate-900"
+                          : darkMode
+                            ? "text-slate-300 hover:bg-slate-800/60"
+                            : "text-slate-700 hover:bg-[#e9f0e6]"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveNav("Home");
+                          void openPreviousChat(item.session_id);
+                          setSidebarOpen(false);
+                        }}
+                        className="min-w-0 flex-1 truncate text-left text-[14.5px]"
+                        title={item.first_question || "Conversation"}
+                      >
+                        {item.first_question || "Conversation"}
+                      </button>
+
+                      <button
+                        type="button"
+                        title="Delete conversation"
+                        aria-label={`Delete conversation: ${item.first_question || "Conversation"}`}
+                        onClick={() => deletePreviousChat(item.session_id)}
+                        className="ml-1.5 rounded-lg p-1 text-xs text-slate-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bottom Helper Section ("A little help goes a long way.") */}
+            <div
+              className={`mt-4 border-t pt-4 ${
+                darkMode ? "border-slate-800" : "border-[#dfe6dc]"
+              }`}
+            >
+              <div className="px-1">
+                <Icon
+                  name="headphones"
+                  className={`h-6 w-6 ${darkMode ? "text-green-400" : "text-[#5b7a53]"}`}
+                />
+                <p
+                  className={`mt-2.5 text-[14.5px] font-bold ${
+                    darkMode ? "text-slate-100" : "text-slate-800"
+                  }`}
+                >
+                  A little help goes a long way.
+                </p>
+                <p
+                  className={`mt-1 text-[13px] leading-relaxed ${
+                    darkMode ? "text-slate-400" : "text-slate-600"
+                  }`}
+                >
+                  Start with your crop and what you&apos;ve noticed. We&apos;ll take it from there.
+                </p>
+                <p
+                  className={`mt-3 text-[12px] ${
+                    darkMode ? "text-slate-400" : "text-slate-500"
+                  }`}
+                >
+                  English · हिन्दी · ಕನ್ನಡ
+                </p>
+              </div>
+            </div>
+
+            {/* Bottom User Profile & Actions Menu */}
+            <div
+              className={`relative mt-3 border-t pt-3 lg:mt-4 ${
+                darkMode ? "border-slate-800" : "border-[#dfe6dc]"
+              }`}
+            >
+              {accountMenuOpen && (
+                <div
+                  className={`absolute bottom-14 left-0 right-0 z-30 rounded-2xl border p-1.5 shadow-lg ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-800 text-slate-100"
+                      : "border-slate-200 bg-white text-slate-800"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleDarkMode();
+                      setAccountMenuOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm ${
+                      darkMode ? "hover:bg-slate-700" : "hover:bg-slate-100"
+                    }`}
+                  >
+                    <span>{darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
+                    <span className="text-xs font-semibold text-green-600">
+                      {darkMode ? "ON" : "OFF"}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                  >
+                    <span>↪</span>
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setAccountMenuOpen((open) => !open)}
+                aria-expanded={accountMenuOpen}
+                className={`flex w-full items-center justify-between rounded-xl px-1.5 py-1.5 transition-colors ${
+                  darkMode ? "hover:bg-slate-800" : "hover:bg-[#e9f0e6]"
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1e4d35] text-sm font-semibold text-white">
+                    S
+                  </span>
+                  <span
+                    className={`text-[15px] font-semibold ${
+                      darkMode ? "text-white" : "text-slate-800"
+                    }`}
+                  >
+                    Farmer Account
+                  </span>
+                </span>
+                <span className="px-1 text-lg tracking-widest text-slate-500">•••</span>
+              </button>
             </div>
           </div>
         </aside>
@@ -1815,19 +1855,13 @@ useEffect(() => {
         {/* ============ Main ============ */}
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/leaf-top.png"
-            alt=""
-            className={`pointer-events-none absolute left-0 top-0 hidden h-40 w-auto transition-opacity duration-500 lg:block ${
-              chatActive && !toolView ? "opacity-0" : "opacity-100"
-            }`}
-          />
+         
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/landscape.jpg"
             alt=""
             className={`pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[150px] w-full object-cover object-bottom transition-opacity duration-500 sm:h-[230px] ${
-              chatActive && !toolView ? "opacity-0" : "opacity-100"
+              (chatActive && !toolView) || darkMode ? "opacity-0" : "opacity-100"
             }`}
             style={{
               maskImage: "linear-gradient(to bottom, transparent 0%, black 30%)",
@@ -1841,43 +1875,21 @@ useEffect(() => {
           )}
 
           {/* Top bar */}
-          <header className="relative z-10 hidden shrink-0 items-center justify-between gap-4 px-5 pb-2 pt-[18px] sm:flex lg:pr-8">
-            {chatActive && !toolView ? (
-              <button
-                type="button"
-                onClick={startNewChat}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-white"
-              >
-                <Icon name="plus" className="h-4 w-4" /> New chat
-              </button>
-            ) : (
-              <span />
-            )}
+          <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 px-4 pb-2 pt-3.5 sm:px-5 sm:pt-[18px] lg:justify-end lg:pr-8">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+              className={`flex h-[44px] w-[44px] items-center justify-center rounded-2xl border shadow-sm lg:hidden ${
+                darkMode
+                  ? "border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
+                  : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+              }`}
+            >
+              <Icon name="menu" className="h-5 w-5" />
+            </button>
 
-            <div className="flex items-center gap-4">
-              <label className="relative flex h-[46px] items-center gap-3 rounded-2xl border border-slate-200 bg-white pl-4 pr-3 shadow-sm">
-                <Icon name="globe" className="h-6 w-6 text-slate-700" />
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value as LanguageChoice)}
-                  aria-label="Language"
-                  className="appearance-none bg-transparent pr-6 text-[16px] font-medium text-slate-800 outline-none"
-                >
-                  <option value="auto">Auto-detect</option>
-                  <option value="en">English</option>
-                  <option value="hi">हिंदी</option>
-                  <option value="kn">ಕನ್ನಡ</option>
-                </select>
-                <Icon name="chevron" className="pointer-events-none absolute right-3 h-4 w-4 text-slate-600" />
-              </label>
-              <span className="relative flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm">
-                <Icon name="bell" className="h-6 w-6" />
-                <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-red-500" />
-              </span>
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-green-800 text-xl font-medium text-white">
-                S
-              </span>
-            </div>
+           
           </header>
 
           {/* Scrollable area */}
@@ -1893,7 +1905,7 @@ useEffect(() => {
                 </button>
 
                 {activeNav === "Weather" && (
-                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm">
+                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 text-slate-800 shadow-sm">
                     <h2 className="font-semibold">Weather by City</h2>
 
                     <form onSubmit={searchWeather} className="mt-3 flex gap-2">
@@ -1934,7 +1946,7 @@ useEffect(() => {
                 )}
 
                 {activeNav === "Market Prices" && (
-                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm">
+                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 text-slate-800 shadow-sm">
                     <h2 className="text-lg font-semibold">📊 Live Mandi Market Prices</h2>
 
                     <p className="mt-1 text-sm text-gray-500">
@@ -2039,7 +2051,7 @@ useEffect(() => {
                 )}
 
                 {activeNav === "Schemes" && (
-                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm">
+                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 text-slate-800 shadow-sm">
                     <h2 className="text-lg font-semibold">🏛️ Scheme Eligibility Checker</h2>
                     <p className="mt-1 text-sm text-gray-500">
                       Answer a few questions to see whether PM-KISAN, crop insurance (PMFBY) and the Kisan Credit Card may apply to you.
@@ -2131,7 +2143,7 @@ useEffect(() => {
                 )}
 
                 {activeNav === "Farming Tips" && (
-                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm">
+                  <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 text-slate-800 shadow-sm">
                     <h2 className="font-semibold">Seasonal Advisory</h2>
                     <div className="mt-3 flex gap-3">
                       <div className="flex-1">
@@ -2180,7 +2192,9 @@ useEffect(() => {
                         className={`min-w-0 max-w-[88%] text-[17px] leading-relaxed sm:max-w-[80%] ${
                           isUser
                             ? "rounded-3xl rounded-br-lg bg-green-700 px-5 py-3 text-white"
-                            : "rounded-3xl rounded-tl-lg border border-slate-200 bg-white px-5 py-4 text-slate-800 shadow-sm"
+                            : darkMode
+                              ? "rounded-3xl rounded-tl-lg border border-slate-800 bg-slate-900 px-5 py-4 text-slate-100 shadow-sm"
+                              : "rounded-3xl rounded-tl-lg border border-slate-200 bg-white px-5 py-4 text-slate-800 shadow-sm"
                         }`}
                       >
                         {isUser ? (
@@ -2244,11 +2258,17 @@ useEffect(() => {
                     <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-green-100">
                       <Logo className="h-6 w-6" />
                     </span>
-                    <div className="flex items-center gap-1.5 rounded-3xl rounded-tl-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                    <div
+                      className={`flex items-center gap-1.5 rounded-3xl rounded-tl-lg border px-5 py-4 shadow-sm ${
+                        darkMode
+                          ? "border-slate-800 bg-slate-900 text-slate-300"
+                          : "border-slate-200 bg-white text-slate-500"
+                      }`}
+                    >
                       <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-green-600 [animation-delay:-0.3s]" />
                       <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-green-600 [animation-delay:-0.15s]" />
                       <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-green-600" />
-                      <span className="ml-2 text-sm text-slate-500">Thinking...</span>
+                      <span className="ml-2 text-sm">Thinking...</span>
                     </div>
                   </div>
                 )}
@@ -2256,7 +2276,7 @@ useEffect(() => {
                 {!loading && result && (
                   <div className="pl-12">
                     <div className="space-y-4">
-                      <div className="rounded-lg bg-green-50 p-4">
+                      <div className="rounded-lg bg-green-50 p-4 text-slate-800">
                         <p className="text-sm font-medium text-green-800">
                           About this answer
                         </p>
@@ -2311,23 +2331,23 @@ useEffect(() => {
                       )}
 
                       <details className="text-sm">
-                        <summary className="cursor-pointer font-medium text-gray-700">
+                        <summary className={`cursor-pointer font-medium ${darkMode ? "text-slate-300" : "text-gray-700"}`}>
                           Technical details
                         </summary>
 
                         <div className="mt-3 space-y-4">
                           <div className="grid gap-3 sm:grid-cols-3">
-                            <div className="rounded-lg bg-gray-50 p-3">
+                            <div className="rounded-lg bg-gray-50 p-3 text-slate-800">
                               <p className="text-sm text-gray-500">Language</p>
                               <p>{result.language}</p>
                             </div>
 
-                            <div className="rounded-lg bg-gray-50 p-3">
+                            <div className="rounded-lg bg-gray-50 p-3 text-slate-800">
                               <p className="text-sm text-gray-500">Intent</p>
                               <p>{result.intent}</p>
                             </div>
 
-                            <div className="rounded-lg bg-gray-50 p-3">
+                            <div className="rounded-lg bg-gray-50 p-3 text-slate-800">
                               <p className="text-sm text-gray-500">Confidence</p>
                               <p>{(result.confidence * 100).toFixed(2)}%</p>
                             </div>
@@ -2370,14 +2390,28 @@ useEffect(() => {
             ) : (
               /* Simplified Home Welcome View */
               <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col justify-center px-5 py-12 text-center lg:px-8">
-                <span className="mx-auto inline-flex items-center gap-2 rounded-full border border-white bg-white/80 px-4 py-2 text-[15px] font-semibold text-green-700 shadow-sm">
+                <span
+                  className={`mx-auto inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[15px] font-semibold shadow-sm ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-900 text-green-400"
+                      : "border-white bg-white/80 text-green-700"
+                  }`}
+                >
                   <Logo className="h-6 w-6" /> Your Farming Companion
                 </span>
 
-                <h1 className="mt-5 text-5xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-[60px]">
-                  Hello, <span className="text-green-700">Farmer!</span>
+                <h1
+                  className={`mt-5 text-5xl font-extrabold leading-tight tracking-tight sm:text-[60px] ${
+                    darkMode ? "text-white" : "text-slate-900"
+                  }`}
+                >
+                  Hello, <span className="text-green-600">Farmer!</span>
                 </h1>
-                <p className="mt-3 text-[22px] font-medium text-slate-700">
+                <p
+                  className={`mt-3 text-[22px] font-medium ${
+                    darkMode ? "text-slate-300" : "text-slate-700"
+                  }`}
+                >
                   Get trusted guidance for better farming decisions.
                 </p>
                 <p className="mt-2 text-[16px] text-slate-500">
@@ -2392,11 +2426,13 @@ useEffect(() => {
             <div
               className={`relative z-10 shrink-0 px-4 pb-3 pt-2 sm:px-6 ${
                 chatActive
-                  ? "bg-gradient-to-t from-[#f6faf6] via-[#f6faf6]/95 to-transparent"
+                  ? darkMode
+                    ? "bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent"
+                    : "bg-gradient-to-t from-[#f6faf6] via-[#f6faf6]/95 to-transparent"
                   : "sm:pb-5"
               }`}
             >
-              <div className="mx-auto w-full max-w-4xl">
+              <div className="mx-auto w-full max-w-3xl">
                 {error && (
                   <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
                     {error}
@@ -2413,126 +2449,89 @@ useEffect(() => {
                   </p>
                 )}
 
-                <section className="rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_10px_40px_-12px_rgba(22,101,52,0.25)] transition focus-within:border-green-400 focus-within:ring-4 focus-within:ring-green-100">
-                  {mode === "text" ? (
-                    <form onSubmit={analyzeText} className="px-5 pb-3 pt-4 sm:px-6 sm:pt-5">
-                      <textarea
-                        id="question"
-                        ref={inputRef}
-                        value={text}
-                        onChange={(event) => setText(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                            event.preventDefault();
-                            event.currentTarget.form?.requestSubmit();
-                          }
-                        }}
-                        maxLength={2000}
-                        required
-                        rows={1}
-                        aria-label="Your farming question"
-                        placeholder={chatActive ? "Ask another question..." : "Ask anything about farming..."}
-                        className="field-sizing-content max-h-40 min-h-[28px] w-full resize-none bg-transparent text-[16px] outline-none placeholder:text-slate-400"
-                      />
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setMode("audio")}
-                          aria-label="Upload an audio file"
-                          title="Upload an audio file"
-                          className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 sm:h-12 sm:w-12"
-                        >
-                          <Icon name="clip" className="h-5 w-5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={toggleRecording}
-                          disabled={loading}
-                          aria-label={isListening ? "Stop recording" : "Speak your question"}
-                          title={isListening ? "Stop recording" : "Speak your question"}
-                          className={`flex h-10 w-10 items-center justify-center rounded-full sm:h-12 sm:w-12 disabled:opacity-50 ${
-                            isListening
-                              ? "animate-pulse bg-red-100 text-red-600"
-                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                          }`}
-                        >
-                          <Icon name={isListening ? "stop" : "mic"} className="h-5 w-5" />
-                        </button>
-                        <label className="relative flex h-10 items-center gap-2 rounded-full bg-slate-100 pl-3 pr-3 text-[14px] font-medium text-slate-800 sm:h-12 sm:pl-4 sm:pr-4 sm:text-[16px]">
-                          <Icon name="globe" className="h-5 w-5" />
-                          <select
-                            value={language}
-                            onChange={(e) => setLanguage(e.target.value as LanguageChoice)}
-                            aria-label="Question language"
-                            className="appearance-none bg-transparent pr-6 outline-none"
-                          >
-                            <option value="auto">Auto-detect</option>
-                            <option value="en">English</option>
-                            <option value="hi">हिंदी</option>
-                            <option value="kn">ಕನ್ನಡ</option>
-                          </select>
-                          <Icon name="chevron" className="pointer-events-none absolute right-3 h-4 w-4" />
-                        </label>
-                        {isListening && (
-                          <span className="text-sm text-red-600">Listening... click to stop</span>
-                        )}
-                        <button
-                          type="submit"
-                          disabled={loading || !text.trim()}
-                          aria-label="Send question"
-                          className="ml-auto flex h-11 w-11 items-center justify-center rounded-full bg-green-700 sm:h-[52px] sm:w-[52px] text-white shadow-md disabled:cursor-not-allowed disabled:opacity-90"
-                        >
-                          {loading ? "..." : <Icon name="up" className="h-6 w-6" />}
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <form
-                      onSubmit={analyzeAudio}
-                      className="flex flex-wrap items-center gap-3 px-6 py-6"
-                    >
-                      <input
-                        key={audioInputKey}
-                        id="audio"
-                        type="file"
-                        accept="audio/*"
-                        required
-                        aria-label="Audio file"
-                        onChange={(event) =>
-                          onAudioFileChange(event.target.files?.[0] ?? null)
+                <section
+                  className={`rounded-[28px] border shadow-[0_10px_40px_-12px_rgba(22,101,52,0.25)] transition focus-within:border-green-400 focus-within:ring-4 focus-within:ring-green-100 ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-900/95 text-slate-100"
+                      : "border-slate-200 bg-white/95 text-slate-800"
+                  }`}
+                >
+                  <form onSubmit={analyzeText} className="px-4 pb-2 pt-2.5 sm:px-5 sm:pt-3">
+                    <textarea
+                      id="question"
+                      ref={inputRef}
+                      value={text}
+                      onChange={(event) => setText(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                          event.preventDefault();
+                          event.currentTarget.form?.requestSubmit();
                         }
-                        className="min-w-0 flex-1 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-green-50 file:px-3 file:py-2 file:font-medium file:text-green-800"
-                      />
-                      <button
-                        type="submit"
-                        disabled={loading || !audioFile}
-                        className="rounded-xl bg-green-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                      >
-                        {loading ? "Processing..." : "Transcribe and analyze"}
-                      </button>
+                      }}
+                      maxLength={2000}
+                      required
+                      rows={1}
+                      aria-label="Your farming question"
+                      placeholder={chatActive ? "Ask another question..." : "Ask anything about farming..."}
+                      className="field-sizing-content max-h-28 min-h-[22px] w-full resize-none bg-transparent text-[15px] outline-none placeholder:text-slate-400"
+                    />
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
                       <button
                         type="button"
                         onClick={toggleRecording}
                         disabled={loading}
-                        className="rounded-xl border px-4 py-2 text-sm disabled:opacity-50"
+                        aria-label={isListening ? "Stop recording" : "Speak your question"}
+                        title={isListening ? "Stop recording" : "Speak your question"}
+                        className={`flex h-10 w-10 items-center justify-center rounded-full sm:h-12 sm:w-12 disabled:opacity-50 ${
+                          isListening
+                            ? "animate-pulse bg-red-100 text-red-600"
+                            : darkMode
+                              ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        }`}
                       >
-                        {isListening ? "Listening... click to stop" : "🎙️ Speak & Analyze"}
+                        <Icon name={isListening ? "stop" : "mic"} className="h-5 w-5" />
                       </button>
+                      <label
+                        className={`relative flex h-10 items-center gap-2 rounded-full pl-3 pr-3 text-[14px] font-medium sm:h-12 sm:pl-4 sm:pr-4 sm:text-[16px] ${
+                          darkMode
+                            ? "bg-slate-800 text-slate-200"
+                            : "bg-slate-100 text-slate-800"
+                        }`}
+                      >
+                        <Icon name="globe" className="h-5 w-5" />
+                        <select
+                          value={language}
+                          onChange={(e) => setLanguage(e.target.value as LanguageChoice)}
+                          aria-label="Question language"
+                          className="appearance-none bg-transparent pr-6 outline-none"
+                        >
+                          <option value="auto" className="text-slate-900">Auto-detect</option>
+                          <option value="en" className="text-slate-900">English</option>
+                          <option value="hi" className="text-slate-900">हिंदी</option>
+                          <option value="kn" className="text-slate-900">ಕನ್ನಡ</option>
+                        </select>
+                        <Icon name="chevron" className="pointer-events-none absolute right-3 h-4 w-4" />
+                      </label>
+                      {isListening && (
+                        <span className="text-sm text-red-600">Listening... click to stop</span>
+                      )}
                       <button
-                        type="button"
-                        onClick={() => setMode("text")}
-                        className="rounded-xl border px-4 py-2 text-sm"
+                        type="submit"
+                        disabled={loading || !text.trim()}
+                        aria-label="Send question"
+                        className="ml-auto flex h-11 w-11 items-center justify-center rounded-full bg-green-700 text-white shadow-md disabled:cursor-not-allowed disabled:opacity-90 sm:h-[52px] sm:w-[52px]"
                       >
-                        ✏️ Text input
+                        {loading ? "..." : <Icon name="up" className="h-6 w-6" />}
                       </button>
-                    </form>
-                  )}
+                    </div>
+                  </form>
                 </section>
 
                 <p
                   className={`mt-2 text-center text-[11px] ${
-                    chatActive
+                    chatActive || darkMode
                       ? "text-slate-500"
                       : "font-medium text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]"
                   }`}
