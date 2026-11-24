@@ -10,6 +10,7 @@ import type { FormEvent, ReactNode } from "react";
 const SESSION_STORAGE_KEY = "smart-farming-session";
 const OFFLINE_CHAT_CACHE_KEY = "smart-farming-last-conversation";
 const THEME_STORAGE_KEY = "smart-farming-theme";
+const UI_LANG_STORAGE_KEY = "smart-farming-ui-lang";
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_.:-]{8,128}$/;
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
@@ -35,6 +36,161 @@ const LANG_NAMES: Record<LangCode, string> = {
   en: "English",
   hi: "Hindi",
   kn: "Kannada",
+};
+
+type UiLang = "en" | "hi" | "kn";
+
+const UI_TEXT: Record<
+  UiLang,
+  {
+    appTitle: string;
+    appSubtitle: string;
+    headerTitle: string;
+    newConversation: string;
+    yourConversations: string;
+    clear: string;
+    searchPlaceholder: string;
+    noConversations: string;
+    loadingChats: string;
+    helperTitle: string;
+    helperBody: string;
+    farmerAccount: string;
+    darkMode: string;
+    lightMode: string;
+    logout: string;
+    welcomeBadge: string;
+    welcomeHello: string;
+    welcomeFarmer: string;
+    welcomeSubtitle: string;
+    welcomeDesc: string;
+    inputPlaceholder: string;
+    inputPlaceholderNext: string;
+    speak: string;
+    listening: string;
+    listenAnswer: string;
+    stopAudio: string;
+    wasHelpful: string;
+    helpful: string;
+    notHelpful: string;
+    saving: string;
+    thinking: string;
+    disclaimer: string;
+    offlineBanner: string;
+    backToHome: string;
+    autoDetect: string;
+  }
+> = {
+  en: {
+    appTitle: "Smart Farming",
+    appSubtitle: "Your farming companion",
+    headerTitle: "Let's talk about your farm",
+    newConversation: "New conversation",
+    yourConversations: "Your conversations",
+    clear: "Clear",
+    searchPlaceholder: "Search conversations...",
+    noConversations: "No conversations yet.",
+    loadingChats: "Loading previous chats...",
+    helperTitle: "A little help goes a long way.",
+    helperBody: "Start with your crop and what you've noticed. We'll take it from there.",
+    farmerAccount: "Farmer Account",
+    darkMode: "Dark Mode",
+    lightMode: "Light Mode",
+    logout: "Logout",
+    welcomeBadge: "Your Farming Companion",
+    welcomeHello: "Hello,",
+    welcomeFarmer: "Farmer!",
+    welcomeSubtitle: "Get trusted guidance for better farming decisions.",
+    welcomeDesc: "Ask questions, explore tools, and access real-time information — all in one place.",
+    inputPlaceholder: "Ask anything about farming...",
+    inputPlaceholderNext: "Ask another question...",
+    speak: "Speak",
+    listening: "Listening... click to stop",
+    listenAnswer: "Listen to Answer",
+    stopAudio: "Stop",
+    wasHelpful: "Was this helpful?",
+    helpful: "Helpful",
+    notHelpful: "Not helpful",
+    saving: "Saving...",
+    thinking: "Thinking...",
+    disclaimer: "Prototype: model predictions must be validated before using them for real agricultural advice.",
+    offlineBanner: "Offline — reconnect to ask new questions",
+    backToHome: "Back to home",
+    autoDetect: "Auto-detect",
+  },
+  hi: {
+    appTitle: "स्मार्ट फार्मिंग",
+    appSubtitle: "आपका कृषि साथी",
+    headerTitle: "आइए आपके खेत के बारे में बात करें",
+    newConversation: "नई बातचीत",
+    yourConversations: "आपकी बातचीत",
+    clear: "साफ़ करें",
+    searchPlaceholder: "बातचीत खोजें...",
+    noConversations: "अभी तक कोई बातचीत नहीं।",
+    loadingChats: "पिछली बातचीत लोड हो रही है...",
+    helperTitle: "थोड़ी सी मदद बहुत काम आती है।",
+    helperBody: "अपनी फसल और जो आपने देखा है उससे शुरुआत करें। बाकी हम संभाल लेंगे।",
+    farmerAccount: "किसान खाता",
+    darkMode: "डार्क मोड",
+    lightMode: "लाइट मोड",
+    logout: "लॉग आउट",
+    welcomeBadge: "आपका कृषि साथी",
+    welcomeHello: "नमस्ते,",
+    welcomeFarmer: "किसान!",
+    welcomeSubtitle: "बेहतर खेती के निर्णयों के लिए भरोसेमंद मार्गदर्शन पाएं।",
+    welcomeDesc: "सवाल पूछें, टूल देखें और ताज़ा जानकारी पाएं — सब एक ही जगह पर।",
+    inputPlaceholder: "खेती के बारे में कुछ भी पूछें...",
+    inputPlaceholderNext: "एक और सवाल पूछें...",
+    speak: "बोलें",
+    listening: "सुन रहा है... रोकने के लिए क्लिक करें",
+    listenAnswer: "उत्तर सुनें",
+    stopAudio: "रोकें",
+    wasHelpful: "क्या यह मददगार था?",
+    helpful: "मददगार",
+    notHelpful: "मददगार नहीं",
+    saving: "सहेजा जा रहा है...",
+    thinking: "सोच रहा है...",
+    disclaimer: "प्रोटोटाइप: वास्तविक कृषि सलाह के लिए उपयोग करने से पहले मॉडल के सुझावों की पुष्टि अवश्य करें।",
+    offlineBanner: "ऑफ़लाइन — नए प्रश्न पूछने के लिए पुनः कनेक्ट करें",
+    backToHome: "होम पर वापस जाएं",
+    autoDetect: "स्वतः पहचानें",
+  },
+  kn: {
+    appTitle: "ಸ್ಮಾರ್ಟ್ ಫಾರ್ಮಿಂಗ್",
+    appSubtitle: "ನಿಮ್ಮ ಕೃಷಿ ಸಂಗಾತಿ",
+    headerTitle: "ನಿಮ್ಮ ಕೃಷಿಯ ಬಗ್ಗೆ ಮಾತನಾಡೋಣ",
+    newConversation: "ಹೊಸ ಸಂಭಾಷಣೆ",
+    yourConversations: "ನಿಮ್ಮ ಸಂಭಾಷಣೆಗಳು",
+    clear: "ಅಳಿಸಿ",
+    searchPlaceholder: "ಸಂಭಾಷಣೆಗಳನ್ನು ಹುಡುಕಿ...",
+    noConversations: "ಇನ್ನೂ ಯಾವುದೇ ಸಂಭಾಷಣೆಗಳಿಲ್ಲ.",
+    loadingChats: "ಹಿಂದಿನ ಚಾಟ್‌ಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...",
+    helperTitle: "ಸ್ವಲ್ಪ ನೆರವು, ಉತ್ತಮ ಕೃಷಿ.",
+    helperBody: "ನಿಮ್ಮ ಬೆಳೆ ಮತ್ತು ನೀವು ಗಮನಿಸಿದ ಸಮಸ್ಯೆಯನ್ನು ತಿಳಿಸಿ. ಮುಂದಿನದನ್ನು ನಾವು ನೋಡಿಕೊಳ್ಳುತ್ತೇವೆ.",
+    farmerAccount: "ರೈತ ಖಾತೆ",
+    darkMode: "ಡಾರ್ಕ್ ಮೋಡ್",
+    lightMode: "ಲೈಟ್ ಮೋಡ್",
+    logout: "ಲಾಗ್ ಔಟ್",
+    welcomeBadge: "ನಿಮ್ಮ ಕೃಷಿ ಸಂಗಾತಿ",
+    welcomeHello: "ನಮಸ್ಕಾರ,",
+    welcomeFarmer: "ರೈತರೇ!",
+    welcomeSubtitle: "ಉತ್ತಮ ಕೃಷಿ ನಿರ್ಧಾರಗಳಿಗಾಗಿ ವಿಶ್ವಾಸಾರ್ಹ ಮಾರ್ಗದರ್ಶನ ಪಡೆಯಿರಿ.",
+    welcomeDesc: "ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಿ, ಸಾಧನಗಳನ್ನು ಬಳಸಿ ಮತ್ತು ನೈಜ-ಸಮಯದ ಮಾಹಿತಿಯನ್ನು ಪಡೆಯಿರಿ.",
+    inputPlaceholder: "ಕೃಷಿಯ ಬಗ್ಗೆ ಏನನ್ನಾದರೂ ಕೇಳಿ...",
+    inputPlaceholderNext: "ಮತ್ತೊಂದು ಪ್ರಶ್ನೆ ಕೇಳಿ...",
+    speak: "ಮಾತನಾಡಿ",
+    listening: "ಕೇಳಿಸಿಕೊಳ್ಳುತ್ತಿದೆ... ನಿಲ್ಲಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ",
+    listenAnswer: "ಉತ್ತರವನ್ನು ಆಲಿಸಿ",
+    stopAudio: "ನಿಲ್ಲಿಸಿ",
+    wasHelpful: "ಇದು ಸಹಾಯಕವಾಗಿತ್ತೇ?",
+    helpful: "ಸಹಾಯವಾಯಿತು",
+    notHelpful: "ಸಹಾಯವಾಗಲಿಲ್ಲ",
+    saving: "ಉಳಿಸಲಾಗುತ್ತಿದೆ...",
+    thinking: "ಯೋಚಿಸುತ್ತಿದೆ...",
+    disclaimer: "ಮಾದರಿ: ನಿಜವಾದ ಕೃಷಿ ಸಲಹೆಗಾಗಿ ಬಳಸುವ ಮೊದಲು ಮಾದರಿಯ ಮುನ್ಸೂಚನೆಗಳನ್ನು ಪರಿಶೀಲಿಸಬೇಕು.",
+    offlineBanner: "ಆಫ್‌ಲೈನ್ — ಹೊಸ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಲು ಮರುಸಂಪರ್ಕಿಸಿ",
+    backToHome: "ಮುಖಪುಟಕ್ಕೆ ಹಿಂತಿರುಗಿ",
+    autoDetect: "ಸ್ವಯಂ-ಪತ್ತೆ",
+  },
 };
 
 const MARKET_WORDS: Record<
@@ -700,6 +856,7 @@ function Logo({ className = "h-12 w-12" }: { className?: string }) {
 export default function Home() {
   // ----- chat & UI state -----
   const [darkMode, setDarkMode] = useState(false);
+  const [uiLang, setUiLang] = useState<UiLang>("en");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [text, setText] = useState("");
@@ -757,11 +914,27 @@ export default function Home() {
   const conversationRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const t = UI_TEXT[uiLang];
+
   useEffect(() => {
     try {
       if (localStorage.getItem(THEME_STORAGE_KEY) === "dark") {
         setDarkMode(true);
       }
+      const savedLang = localStorage.getItem(UI_LANG_STORAGE_KEY);
+      if (savedLang === "en" || savedLang === "hi" || savedLang === "kn") {
+        setUiLang(savedLang);
+      }
+    } catch {
+      // Storage unavailable
+    }
+  }, []);
+
+  const handleUiLangChange = useCallback((next: UiLang) => {
+    setUiLang(next);
+    setLanguage((prev) => (prev === "auto" ? "auto" : next));
+    try {
+      localStorage.setItem(UI_LANG_STORAGE_KEY, next);
     } catch {
       // Storage unavailable
     }
@@ -780,24 +953,24 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-  async function checkFarmerAuth() {
-    try {
-      const response = await fetch("/api/farmer/me", {
-        method: "GET",
-        credentials: "same-origin",
-        cache: "no-store",
-      });
+    async function checkFarmerAuth() {
+      try {
+        const response = await fetch("/api/farmer/me", {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+        });
 
-      if (!response.ok) {
+        if (!response.ok) {
+          window.location.replace("/farmer/login");
+        }
+      } catch {
         window.location.replace("/farmer/login");
       }
-    } catch {
-      window.location.replace("/farmer/login");
     }
-  }
 
-  void checkFarmerAuth();
-}, []);
+    void checkFarmerAuth();
+  }, []);
 
   useEffect(() => {
     languageRef.current = language;
@@ -1563,8 +1736,6 @@ export default function Home() {
   const chatActive = activeMessages.length > 0 || loading;
   const lastAssistantIndex = activeMessages.map((item) => item.role).lastIndexOf("assistant");
 
-  
-
   return (
     <div
       className={`h-dvh overflow-hidden transition-colors ${
@@ -1576,7 +1747,7 @@ export default function Home() {
           role="status"
           className="sticky top-0 z-50 border-b border-amber-300 bg-amber-100 px-4 py-2.5 text-center text-sm font-medium text-amber-950"
         >
-          Offline — reconnect to ask new questions
+          {t.offlineBanner}
         </div>
       )}
       <div className="flex h-full flex-col lg:flex-row">
@@ -1612,14 +1783,14 @@ export default function Home() {
                       darkMode ? "text-white" : "text-[#1e4d35]"
                     }`}
                   >
-                    Smart Farming
+                    {t.appTitle}
                   </p>
                   <p
                     className={`truncate text-[12.5px] ${
                       darkMode ? "text-slate-400" : "text-slate-600"
                     }`}
                   >
-                    Your farming companion
+                    {t.appSubtitle}
                   </p>
                 </div>
               </div>
@@ -1653,7 +1824,7 @@ export default function Home() {
               }`}
             >
               <Icon name="plus" className="h-5 w-5 opacity-80" />
-              <span>New conversation</span>
+              <span>{t.newConversation}</span>
             </button>
 
             {/* Your conversations list */}
@@ -1664,7 +1835,7 @@ export default function Home() {
                     darkMode ? "text-slate-400" : "text-slate-600"
                   }`}
                 >
-                  Your conversations
+                  {t.yourConversations}
                 </p>
                 {history.length > 0 && (
                   <button
@@ -1672,7 +1843,7 @@ export default function Home() {
                     onClick={deleteAllChats}
                     className="text-xs text-slate-400 hover:text-red-600"
                   >
-                    Clear
+                    {t.clear}
                   </button>
                 )}
               </div>
@@ -1681,8 +1852,8 @@ export default function Home() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search conversations..."
-                  aria-label="Search conversations"
+                  placeholder={t.searchPlaceholder}
+                  aria-label={t.searchPlaceholder}
                   className={`mb-2 w-full rounded-xl border px-3 py-1.5 text-sm outline-none ${
                     darkMode
                       ? "border-slate-700 bg-slate-800 text-slate-100 placeholder:text-slate-500"
@@ -1693,7 +1864,7 @@ export default function Home() {
 
               <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
                 {historyLoading && (
-                  <p className="px-1 text-sm text-slate-500">Loading previous chats...</p>
+                  <p className="px-1 text-sm text-slate-500">{t.loadingChats}</p>
                 )}
 
                 {historyError && (
@@ -1704,7 +1875,7 @@ export default function Home() {
 
                 {!historyLoading && !historyError && filteredHistory.length === 0 && (
                   <p className="px-1 text-sm text-slate-500">
-                    No conversations yet.
+                    {t.noConversations}
                   </p>
                 )}
 
@@ -1767,14 +1938,14 @@ export default function Home() {
                     darkMode ? "text-slate-100" : "text-slate-800"
                   }`}
                 >
-                  A little help goes a long way.
+                  {t.helperTitle}
                 </p>
                 <p
                   className={`mt-1 text-[13px] leading-relaxed ${
                     darkMode ? "text-slate-400" : "text-slate-600"
                   }`}
                 >
-                  Start with your crop and what you&apos;ve noticed. We&apos;ll take it from there.
+                  {t.helperBody}
                 </p>
                 <p
                   className={`mt-3 text-[12px] ${
@@ -1810,7 +1981,7 @@ export default function Home() {
                       darkMode ? "hover:bg-slate-700" : "hover:bg-slate-100"
                     }`}
                   >
-                    <span>{darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
+                    <span>{darkMode ? `☀️ ${t.lightMode}` : `🌙 ${t.darkMode}`}</span>
                     <span className="text-xs font-semibold text-green-600">
                       {darkMode ? "ON" : "OFF"}
                     </span>
@@ -1821,7 +1992,7 @@ export default function Home() {
                     className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50"
                   >
                     <span>↪</span>
-                    <span>Logout</span>
+                    <span>{t.logout}</span>
                   </button>
                 </div>
               )}
@@ -1843,7 +2014,7 @@ export default function Home() {
                       darkMode ? "text-white" : "text-slate-800"
                     }`}
                   >
-                    Farmer Account
+                    {t.farmerAccount}
                   </span>
                 </span>
                 <span className="px-1 text-lg tracking-widest text-slate-500">•••</span>
@@ -1854,8 +2025,6 @@ export default function Home() {
 
         {/* ============ Main ============ */}
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-         
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/landscape.jpg"
@@ -1870,26 +2039,55 @@ export default function Home() {
           />
           {toolView && (
             <p className="pointer-events-none absolute inset-x-0 bottom-2 z-10 px-4 text-center text-[11px] font-medium text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
-              Prototype: model predictions must be validated before using them for real agricultural advice.
+              {t.disclaimer}
             </p>
           )}
 
           {/* Top bar */}
-          <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 px-4 pb-2 pt-3.5 sm:px-5 sm:pt-[18px] lg:justify-end lg:pr-8">
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open menu"
-              className={`flex h-[44px] w-[44px] items-center justify-center rounded-2xl border shadow-sm lg:hidden ${
+          <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 px-4 pb-2 pt-3.5 sm:px-5 sm:pt-[18px] lg:pr-8">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
+                className={`flex h-[44px] w-[44px] items-center justify-center rounded-2xl border shadow-sm lg:hidden ${
+                  darkMode
+                    ? "border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
+                    : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                }`}
+              >
+                <Icon name="menu" className="h-5 w-5" />
+              </button>
+
+              <div className="hidden sm:block">
+                <p className={`text-[15px] font-semibold ${darkMode ? "text-white" : "text-slate-800"}`}>
+                  {t.headerTitle}
+                </p>
+                <p className="text-xs text-slate-500">{t.appSubtitle}</p>
+              </div>
+            </div>
+
+            {/* UI Language Switcher */}
+            <label
+              className={`relative flex h-[44px] items-center gap-2 rounded-2xl border pl-3 pr-2 shadow-sm sm:h-[46px] ${
                 darkMode
-                  ? "border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
-                  : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                  ? "border-slate-700 bg-slate-900 text-slate-100"
+                  : "border-slate-200 bg-white text-slate-800"
               }`}
             >
-              <Icon name="menu" className="h-5 w-5" />
-            </button>
-
-           
+              <Icon name="globe" className={`h-5 w-5 ${darkMode ? "text-slate-300" : "text-slate-700"}`} />
+              <select
+                value={uiLang}
+                onChange={(e) => handleUiLangChange(e.target.value as UiLang)}
+                aria-label="App interface language"
+                className="appearance-none bg-transparent pr-6 text-[15px] font-medium outline-none"
+              >
+                <option value="en" className="text-slate-900">English</option>
+                <option value="hi" className="text-slate-900">हिंदी</option>
+                <option value="kn" className="text-slate-900">ಕನ್ನಡ</option>
+              </select>
+              <Icon name="chevron" className="pointer-events-none absolute right-2.5 h-4 w-4 text-slate-500" />
+            </label>
           </header>
 
           {/* Scrollable area */}
@@ -1901,7 +2099,7 @@ export default function Home() {
                   onClick={() => setActiveNav("Home")}
                   className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-green-800 shadow-sm"
                 >
-                  <Icon name="right" className="h-4 w-4 rotate-180" /> Back to home
+                  <Icon name="right" className="h-4 w-4 rotate-180" /> {t.backToHome}
                 </button>
 
                 {activeNav === "Weather" && (
@@ -2205,11 +2403,11 @@ export default function Home() {
 
                             {typeof item.id === "number" && (
                               <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-2">
-                                <span className="text-xs text-slate-500">Was this helpful?</span>
+                                <span className="text-xs text-slate-500">{t.wasHelpful}</span>
 
                                 <button
                                   type="button"
-                                  aria-label="Helpful answer"
+                                  aria-label={t.helpful}
                                   disabled={feedbackLoading === item.id}
                                   onClick={() => void submitFeedback(item.id!, "up")}
                                   className={`rounded-lg px-2 py-1 text-sm ${
@@ -2223,7 +2421,7 @@ export default function Home() {
 
                                 <button
                                   type="button"
-                                  aria-label="Not helpful"
+                                  aria-label={t.notHelpful}
                                   disabled={feedbackLoading === item.id}
                                   onClick={() => void submitFeedback(item.id!, "down")}
                                   className={`rounded-lg px-2 py-1 text-sm ${
@@ -2236,7 +2434,7 @@ export default function Home() {
                                 </button>
 
                                 {feedbackLoading === item.id && (
-                                  <span className="text-xs text-slate-400">Saving...</span>
+                                  <span className="text-xs text-slate-400">{t.saving}</span>
                                 )}
                               </div>
                             )}
@@ -2268,7 +2466,7 @@ export default function Home() {
                       <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-green-600 [animation-delay:-0.3s]" />
                       <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-green-600 [animation-delay:-0.15s]" />
                       <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-green-600" />
-                      <span className="ml-2 text-sm">Thinking...</span>
+                      <span className="ml-2 text-sm">{t.thinking}</span>
                     </div>
                   </div>
                 )}
@@ -2286,7 +2484,7 @@ export default function Home() {
                           onClick={toggleSpeech}
                           className="mt-2 rounded-lg bg-green-700 px-4 py-2 text-white"
                         >
-                          {isSpeaking ? "⏹️ Stop" : "🔊 Listen to Answer"}
+                          {isSpeaking ? `⏹️ ${t.stopAudio}` : `🔊 ${t.listenAnswer}`}
                         </button>
 
                         {resultSources.length > 0 && (
@@ -2397,7 +2595,7 @@ export default function Home() {
                       : "border-white bg-white/80 text-green-700"
                   }`}
                 >
-                  <Logo className="h-6 w-6" /> Your Farming Companion
+                  <Logo className="h-6 w-6" /> {t.welcomeBadge}
                 </span>
 
                 <h1
@@ -2405,17 +2603,17 @@ export default function Home() {
                     darkMode ? "text-white" : "text-slate-900"
                   }`}
                 >
-                  Hello, <span className="text-green-600">Farmer!</span>
+                  {t.welcomeHello} <span className="text-green-600">{t.welcomeFarmer}</span>
                 </h1>
                 <p
                   className={`mt-3 text-[22px] font-medium ${
                     darkMode ? "text-slate-300" : "text-slate-700"
                   }`}
                 >
-                  Get trusted guidance for better farming decisions.
+                  {t.welcomeSubtitle}
                 </p>
                 <p className="mt-2 text-[16px] text-slate-500">
-                  Ask questions, explore tools, and access real-time information — all in one place.
+                  {t.welcomeDesc}
                 </p>
               </div>
             )}
@@ -2472,7 +2670,7 @@ export default function Home() {
                       required
                       rows={1}
                       aria-label="Your farming question"
-                      placeholder={chatActive ? "Ask another question..." : "Ask anything about farming..."}
+                      placeholder={chatActive ? t.inputPlaceholderNext : t.inputPlaceholder}
                       className="field-sizing-content max-h-28 min-h-[22px] w-full resize-none bg-transparent text-[15px] outline-none placeholder:text-slate-400"
                     />
 
@@ -2507,7 +2705,7 @@ export default function Home() {
                           aria-label="Question language"
                           className="appearance-none bg-transparent pr-6 outline-none"
                         >
-                          <option value="auto" className="text-slate-900">Auto-detect</option>
+                          <option value="auto" className="text-slate-900">{t.autoDetect}</option>
                           <option value="en" className="text-slate-900">English</option>
                           <option value="hi" className="text-slate-900">हिंदी</option>
                           <option value="kn" className="text-slate-900">ಕನ್ನಡ</option>
@@ -2515,7 +2713,7 @@ export default function Home() {
                         <Icon name="chevron" className="pointer-events-none absolute right-3 h-4 w-4" />
                       </label>
                       {isListening && (
-                        <span className="text-sm text-red-600">Listening... click to stop</span>
+                        <span className="text-sm text-red-600">{t.listening}</span>
                       )}
                       <button
                         type="submit"
@@ -2536,7 +2734,7 @@ export default function Home() {
                       : "font-medium text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]"
                   }`}
                 >
-                  Prototype: model predictions must be validated before using them for real agricultural advice.
+                  {t.disclaimer}
                 </p>
               </div>
             </div>
